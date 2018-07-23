@@ -88,7 +88,7 @@ module.exports = class remoteCommands {
 
 
         this.socket.on("trainteleport_json", async data => {
-            this.messageInterface('/silent-command remote.call("trainTeleports","json",\'' + JSON.stringify(data).replace(/"/g, '\\\\"') + '\')');
+            this.messageInterface('/silent-command remote.call("trainTeleports","json",\'' + JSON.stringify(data).replace(/"/g, '\\"') + '\')');
         });
 
         this.socket.on("trainstop_blocked", async data => {
