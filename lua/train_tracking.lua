@@ -411,21 +411,24 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                         -- check restrictions
                         -- find out the server and zone(s) the target stop is in, and then check if this stop is allowed to teleport there
 
+                        local zoneMatch = false
                         local targetStopName, targetServerName = trainStopTrackingApi.resolveStop(train_schedule.records[next_stop].station)
                         local targetServerId = trainStopTrackingApi.lookupNameToId(targetServerName)
-                        local targetZones = global.remoteStopZones[tostring(targetServerId)][targetStopName]
+                        local targetServerZones = global.remoteStopZones[tostring(targetServerId)]
+                        if targetServerZones ~= nil and table_size(targetServerZones) > 0 then
+                            local targetZones = global.remoteStopZones[tostring(targetServerId)][targetStopName]
 
-                        local zoneMatch = false
-                        for _, restriction in pairs(restrictions) do
-                            if restriction.server == targetServerName then
-                                for __, zoneName in pairs(targetZones) do
-                                    if zoneName == restriction.zone then
-                                        zoneMatch = true
+                            for _, restriction in pairs(restrictions) do
+                                if restriction.server == targetServerName then
+                                    for __, zoneName in pairs(targetZones) do
+                                        if zoneName == restriction.zone then
+                                            zoneMatch = true
+                                            break
+                                        end
+                                    end
+                                    if zoneMatch then
                                         break
                                     end
-                                end
-                                if zoneMatch then
-                                    break
                                 end
                             end
                         end
