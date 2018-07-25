@@ -215,7 +215,7 @@ class masterPlugin {
 	    this.propagateStopsTimeout = setTimeout(() => {
 //console.log(JSON.stringify(this.trainstopsDatabase));
             if(!this.lastPropagatedTrainstops) {
-                this.lastPropagatedTrainstops = JSON.parse(JSON.stringify(this.trainstopsDatabase));
+                // this.lastPropagatedTrainstops = JSON.parse(JSON.stringify(this.trainstopsDatabase));
                 this.io.sockets.emit("trainstopsDatabase", this.trainstopsDatabase);
             } else {
                 let diff = changesets.diff(this.lastPropagatedTrainstops, this.trainstopsDatabase);
@@ -241,7 +241,7 @@ class masterPlugin {
         this.propagateZonesTimeout = setTimeout(() => {
 // console.log(JSON.stringify(this.zonesDatabase));
             if(!this.lastPropagatedZones) {
-                this.lastPropagatedZones = JSON.parse(JSON.stringify(this.zonesDatabase));
+                //this.lastPropagatedZones = JSON.parse(JSON.stringify(this.zonesDatabase));
                 this.io.sockets.emit("zonesDatabase", this.zonesDatabase);
             } else {
                 let diff = changesets.diff(this.lastPropagatedZones, this.zonesDatabase);
