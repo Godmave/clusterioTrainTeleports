@@ -178,9 +178,12 @@ local function updateTrainstop(entity)
         local oldName = registration.name
         registration.name = entity.backer_name
         registration.zones = {}
-        for _, zone in pairs(global.stopZones[entity.unit_number]) do
-            if global.config.zones[zone] ~= nil then
-                table.insert(registration.zones, global.config.zones[zone].name)
+
+        if global.stopZones[entity.unit_number] then
+            for _, zone in pairs(global.stopZones[entity.unit_number]) do
+                if global.config.zones[zone] ~= nil then
+                    table.insert(registration.zones, global.config.zones[zone].name)
+                end
             end
         end
 
