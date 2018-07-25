@@ -120,7 +120,9 @@ class trainTeleporter{
 	async setZones(instanceZones) {
         let zones = await this.master.getZones();
         zones[this.instanceID] = instanceZones;
-        await this.master.propagateZones();
+        if (instanceZones.length) {
+            await this.master.propagateZones();
+        }
     }
 	async addZone(zoneIndex, zone){
 		let zones = await this.master.getZones();
@@ -211,7 +213,7 @@ class masterPlugin {
 	        clearTimeout(this.propagateStopsTimeout);
         }
 	    this.propagateStopsTimeout = setTimeout(() => {
-console.log(JSON.stringify(this.trainstopsDatabase));
+//console.log(JSON.stringify(this.trainstopsDatabase));
             if(!this.lastPropagatedTrainstops) {
                 this.lastPropagatedTrainstops = JSON.parse(JSON.stringify(this.trainstopsDatabase));
                 this.io.sockets.emit("trainstopsDatabase", this.trainstopsDatabase);
@@ -237,7 +239,7 @@ console.log(JSON.stringify(this.trainstopsDatabase));
             clearTimeout(this.propagateZonesTimeout);
         }
         this.propagateZonesTimeout = setTimeout(() => {
-console.log(JSON.stringify(this.zonesDatabase));
+// console.log(JSON.stringify(this.zonesDatabase));
             if(!this.lastPropagatedZones) {
                 this.lastPropagatedZones = JSON.parse(JSON.stringify(this.zonesDatabase));
                 this.io.sockets.emit("zonesDatabase", this.zonesDatabase);
@@ -245,7 +247,7 @@ console.log(JSON.stringify(this.zonesDatabase));
                 let diff = changesets.diff(this.lastPropagatedZones, this.zonesDatabase);
                 if(diff) {
                     this.io.sockets.emit("zonesDatabaseDiff", diff);
-// console.log(JSON.stringify(diff));
+//console.log("ZONDIFF", JSON.stringify(diff));
                     this.lastPropagatedZones = JSON.parse(JSON.stringify(this.zonesDatabase));
                 }
             }
