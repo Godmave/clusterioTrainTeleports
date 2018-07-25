@@ -119,7 +119,7 @@ local function collectReachables(serverName, stopName)
         for _, stopZone in pairs(zones) do
             local serverZones = global.zones[tostring(serverId)]
             if serverZones ~= nil then
-                for __, zone in pairs(global.zones[tostring(serverId)]) do
+                for __, zone in pairs(serverZones) do
                     if zone.name == stopZone then
                         if zone.restrictions and #zone.restrictions > 0 then
                             for ___, restriction in pairs(zone.restrictions) do
