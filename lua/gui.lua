@@ -117,20 +117,23 @@ local function collectReachables(serverName, stopName)
 
     if zones and #zones > 0 then
         for _, stopZone in pairs(zones) do
-            for __, zone in pairs(global.zones[tostring(serverId)]) do
-                if zone.name == stopZone then
-                    if zone.restrictions and #zone.restrictions > 0 then
-                        for ___, restriction in pairs(zone.restrictions) do
-                            reachableStops[restriction.server] = reachableStops[restriction.server] or {}
-                            reachableStops[restriction.server][restriction.zone] = {}
+            local serverZones = global.zones[tostring(serverId)]
+            if serverZones ~= nil then
+                for __, zone in pairs(global.zones[tostring(serverId)]) do
+                    if zone.name == stopZone then
+                        if zone.restrictions and #zone.restrictions > 0 then
+                            for ___, restriction in pairs(zone.restrictions) do
+                                reachableStops[restriction.server] = reachableStops[restriction.server] or {}
+                                reachableStops[restriction.server][restriction.zone] = {}
 
-                            for ____, stopName in pairs(global.remoteZoneStops[tostring(serverId)][stopZone]) do
-                                reachableStops[restriction.server][restriction.zone][stopName] = true
+                                for ____, stopName in pairs(global.remoteZoneStops[tostring(serverId)][stopZone]) do
+                                    reachableStops[restriction.server][restriction.zone][stopName] = true
+                                end
                             end
-                        end
-                    else
-                        for _, s in ipairs(global.trainstopsData) do
-                            reachableStops[s.name] = {}
+                        else
+                            for _, s in ipairs(global.trainstopsData) do
+                                reachableStops[s.name] = {}
+                            end
                         end
                     end
                 end
