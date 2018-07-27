@@ -94,8 +94,8 @@ local function gui_generic_dropdown(data, key, name, selectedIndex)
         items = {}
     }
 
-    if data ~= nil and #data > 0 then
-        for _, item in ipairs(data) do
+    if data ~= nil and table_size(data) > 0 then
+        for _, item in pairs(data) do
             table.insert(options.items, item[key])
         end
     end
@@ -526,7 +526,12 @@ local function gui_zonemanager_zonerestriction(parent, _, restrictions, removeOn
 
         ddname = "clusterio-trainteleport-restriction-".._.."-zone"
         options = gui_generic_dropdown(serverZones, "name", ddname, zone)
-        parent.add(options)
+
+        if options.selected_index then
+            parent.add(options)
+        else
+            parent.add({type="label", caption = "no zones"})
+        end
     else
         parent.add{type="label", caption=restrictions[_].server}
         parent.add{type="label", caption=restrictions[_].zone}
@@ -616,17 +621,21 @@ local function gui_zonemanager(player_index)
         global.zonemanager = {}
     end
 
+    local player = game.players[player_index]
+
+
     if global.zonemanager[player_index] then
         global.zonemanager[player_index].gui.destroy()
         global.zonemanager[player_index] = nil
+        player.opened = nil
         return
     end
 
-    local player = game.players[player_index]
 
     global.zonemanager[player_index] = {}
     global.zonemanager[player_index].gui = player.gui.center.add{type = 'frame', name = 'clusterio-trainteleport-zonemanager', direction = 'vertical', caption = 'Zone-Manager'}
     local gui = global.zonemanager[player_index].gui
+    player.opened = gui
     gui.style.title_top_padding = 0
 
     global.zonemanager[player_index].container = gui.add{type="table", column_count=1}
@@ -694,10 +703,12 @@ script.on_event(defines.events.on_gui_selection_state_changed, function(event)
                 local serverZones = global.zones[serverId] or global.zones[tonumber(serverId)] or {}
 
                 global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].clear_items()
-                for __, z in pairs(serverZones) do
-                    global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].add_item(z.name, __)
+                if table_size(serverZones) > 0 then
+                    for __, z in pairs(serverZones) do
+                        global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].add_item(z.name, __)
+                    end
+                    global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index = 1
                 end
-                global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index = 1
             end
         end
 
@@ -801,6 +812,13 @@ end)
 script.on_event(defines.events.on_gui_closed, function (event)
     local player_index = event.player_index
     local entity = event.entity
+
+    if global.zonemanager and global.zonemanager[player_index] and global.zonemanager[player_index].gui and event.element == global.zonemanager[player_index].gui then
+        game.players[player_index].play_sound{path = "utility/gui_click"}
+        gui_zonemanager(player_index)
+        return
+    end
+
     if not entity or entity.type ~= "locomotive" then
         return
     end
@@ -966,8 +984,11 @@ script.on_event(defines.events.on_gui_click, function (event)
             -- save or add this restriction to the currently selected zone
             global.config.zones[zoneIndex].restrictions[tonumber(_)] = {
                 server = global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-server"].get_item(global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-server"].selected_index),
-                zone = global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].get_item(global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index)
+                zone = nil
             }
+            if global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index then
+                global.config.zones[zoneIndex].restrictions[tonumber(_)]["zone"] = global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].get_item(global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index)
+            end
         elseif what == "remove" then
             -- remove this restriction from the currently selected zone
             global.config.zones[zoneIndex].restrictions[tonumber(_)] = nil

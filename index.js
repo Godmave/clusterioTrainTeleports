@@ -1,7 +1,6 @@
 const pluginConfig = require("./config");
 const clusterUtil = require("./lib/clusterUtil.js");
 const fs = require("fs");
-const changesets = require("diff-json");
 
 const COMPRESS_LUA = false;
 
@@ -66,23 +65,9 @@ module.exports = class remoteCommands {
 		    await this.applyTrainstopDB();
 		});
 
-		this.socket.on("trainstopsDatabaseDiff", async trainstopsDBDiff => {
-		    console.log("got trainstops diff from master");
-            changesets.applyChanges(this.trainstopDB, trainstopsDBDiff, true);
-		    await this.applyTrainstopDB();
-		});
-
         this.socket.on("zonesDatabase", async zonesDB => {
             console.log("got zones from master");
             this.zonesDB = zonesDB;
-            await this.applyZonesDB();
-        });
-
-        this.socket.on("zonesDatabaseDiff", async zonesDBDiff => {
-            console.log("got zones diff from master");
-            if(zonesDBDiff) {
-                changesets.applyChanges(this.zonesDB, zonesDBDiff, true);
-            }
             await this.applyZonesDB();
         });
 
@@ -101,7 +86,7 @@ module.exports = class remoteCommands {
         });
         this.socket.on("trainStopRenameSchedules", async data => {
             console.log("rename stop in schedules: "+data.oldName+" to "+data.name+" for instance "+data.instanceID);
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "updateStopInSchedules", "' +data.instanceID+ '", "'+data.oldName.replace(/"/g, '\\\\"')+'", "'+data.name.replace(/"/g, '\\\\"')+'")');
+            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "updateStopInSchedules", "' +data.instanceID+ '", "'+data.oldName.replace(/"/g, '\\"')+'", "'+data.name.replace(/"/g, '\\"')+'")');
         });
 
 	}

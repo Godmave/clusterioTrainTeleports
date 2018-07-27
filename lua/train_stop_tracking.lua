@@ -153,7 +153,7 @@ local function updateTrainstop(entity)
             zones = {}
         }
 
-        if global.stopZones[entity.unit_number] then
+        if global.stopZones and global.stopZones[entity.unit_number] then
             for _, zone in pairs(global.stopZones[entity.unit_number]) do
                 table.insert(registration.zones, global.config.zones[zone].name)
             end

@@ -92,7 +92,7 @@ remote.add_interface("trainTeleports", {
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
-            log(serpent.block(global.zones))
+            -- log(serpent.block(global.zones))
         end
 
     end,
@@ -108,10 +108,12 @@ remote.add_interface("trainTeleports", {
             for _, train in pairs(surfaceTrains) do
                 local schedule = train.schedule
                 local isChanged = false
-                for _, record in pairs(schedule.records) do
-                    if record.station == oldName then
-                        record.station = name
-                        isChanged = true
+                if schedule ~= nil then
+                    for _, record in pairs(schedule.records) do
+                        if record.station == oldName then
+                            record.station = name
+                            isChanged = true
+                        end
                     end
                 end
 
