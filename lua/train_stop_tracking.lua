@@ -261,8 +261,12 @@ local function initAllTrainstopsAndZones()
     local package = {
         event = "zones",
         worldId = global.worldID,
-        zones = global.config.zones
+        zones = {}
     }
+    for _, z  in pairs(global.config.zones) do
+        package.zones[tostring(_)] = z
+    end
+
     game.write_file(fileName, json:encode(package) .. "\n", true, 0)
 end
 

@@ -105,9 +105,6 @@ class trainTeleporter{
 					cleanStops.push(trainstop);
 				}
 			});
-			console.log("--------------\n");
-            console.log(name, cleanStops);
-            console.log("--------------\n");
             trainstops[this.instanceID][name].stops = cleanStops;
 
 			if(!trainstops[this.instanceID][name].stops[0]) delete trainstops[this.instanceID][name];
@@ -119,7 +116,7 @@ class trainTeleporter{
 	async setZones(instanceZones) {
         let zones = await this.master.getZones();
         zones[this.instanceID] = instanceZones;
-        if (instanceZones && instanceZones.length) {
+        if (instanceZones && instanceZones["1"]) {
             await this.master.propagateZones();
         }
     }
@@ -228,7 +225,7 @@ class masterPlugin {
             clearTimeout(this.propagateZonesTimeout);
         }
         this.propagateZonesTimeout = setTimeout(() => {
-// console.log(JSON.stringify(this.zonesDatabase));
+//console.log("ZONES:", JSON.stringify(this.zonesDatabase));
             this.io.sockets.emit("zonesDatabase", this.zonesDatabase);
 
         }, 100);
