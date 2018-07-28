@@ -107,9 +107,13 @@ class trainTeleporter{
 			});
             trainstops[this.instanceID][name].stops = cleanStops;
 
-			if(!trainstops[this.instanceID][name].stops[0]) delete trainstops[this.instanceID][name];
+			if(!trainstops[this.instanceID][name].stops[0]){
+			    delete trainstops[this.instanceID][name];
+                await this.master.propagateTrainstops();
+			    return true;
+            }
             await this.master.propagateTrainstops();
-			return true;
+			return false;
 		}
 	}
 
