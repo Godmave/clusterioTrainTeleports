@@ -1101,6 +1101,9 @@ script.on_event(defines.events.on_gui_click, function (event)
             gui_markScheduleStop(state, key)
         else
             -- game.print("clicked: " .. element_name)
+            if element_name == "reset" then
+                gui_trainstops(state.rightPane, state)
+            end
         end
     end
 end)
