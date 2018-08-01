@@ -73,32 +73,50 @@ module.exports = class remoteCommands {
 
 
         this.socket.on("trainteleport_json", async data => {
-            this.messageInterface('/silent-command remote.call("trainTeleports","json",\'' + JSON.stringify(data).replace(/"/g, '\\"') + '\')');
+            this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.doubleEscape(JSON.stringify(data)) + '")');
         });
 
         this.socket.on("trainstop_blocked", async data => {
             console.log("remote trainstop_blocked: "+data.name);
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "runCode", \'global.blockedStations["'+data.name.replace(/"/g, '\\\\"')+'"] = true\')');
+            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = true")');
         });
         this.socket.on("trainstop_unblocked", async data => {
             console.log("remote trainstop_unblocked: "+data.name);
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "runCode", \'global.blockedStations["'+data.name.replace(/"/g, '\\\\"')+'"] = nil\')');
+            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = nil")');
         });
         this.socket.on("trainStopRenameSchedules", async data => {
             console.log("rename stop in schedules: "+data.oldName+" to "+data.name+" for instance "+data.instanceID);
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "updateStopInSchedules", "' +data.instanceID+ '", "'+data.oldName.replace(/"/g, '\\"')+'", "'+data.name.replace(/"/g, '\\"')+'")');
+            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "updateStopInSchedules", "' +data.instanceID+ '", "'+this.doubleEscape(data.oldName)+'", "'+this.doubleEscape(data.name)+'")');
         });
 
 	}
+
+    singleEscape(stop) {
+        stop = stop.replace(/\\/g, "\\\\");
+        stop = stop.replace(/"/g, '\\"');
+        stop = stop.replace(/'/g, "\\'");
+
+        return stop
+    }
+    doubleEscape(stop) {
+        stop = stop.replace(/\\/g, "\\\\\\\\");
+        stop = stop.replace(/"/g, '\\\\\\"');
+        stop = stop.replace(/'/g, "\\\'");
+
+        return stop
+    }
+
+
+	// todo: need to escape ',\
 	async applyTrainstopDB(){
 	    let trainstopsDB = this.trainstopDB;
-        let command = 'remote.call("trainTeleports", "runCode", \'global.trainstopsData = {';
+        let command = 'remote.call("trainTeleports", "runCode", "global.trainstopsData = {';
         for(let instanceID in trainstopsDB){
             command += '{id='+instanceID+',';
-            command += 'name="'+await clusterUtil.getInstanceName(instanceID, this.config)+'",';
+            command += 'name=\\"'+await clusterUtil.getInstanceName(instanceID, this.config)+'\\",';
             command += 'stations={';
             for(let trainstop in trainstopsDB[instanceID]){
-                command += '"'+trainstop.replace(/"/g, '\\\\"')+'",';
+                command += '\\"'+this.doubleEscape(trainstop)+'\\",';
             }
             command += '}},';
         }
@@ -106,18 +124,18 @@ module.exports = class remoteCommands {
 
         command += 'global.remoteStopZones = {}';
         for(let instanceID in trainstopsDB){
-            command += 'global.remoteStopZones["'+instanceID+'"] = {}';
+            command += 'global.remoteStopZones[\\"'+instanceID+'\\"] = {}';
             for(let trainstop in trainstopsDB[instanceID]){
                 for(let sdi in trainstopsDB[instanceID][trainstop].stops) {
                     let stopdata = trainstopsDB[instanceID][trainstop].stops[sdi];
-                    command += 'global.remoteStopZones["'+instanceID+'"]["'+trainstop.replace(/"/g, '\\\\"')+'"]={"' + stopdata.zones.join('","') + '"}'
+                    command += 'global.remoteStopZones[\\"'+instanceID+'\\"][\\"'+this.doubleEscape(trainstop)+'\\"]={\\"' + stopdata.zones.join('","') + '\\"}'
                 }
             }
         }
         command += 'trainStopTrackingApi.rebuildInstanceLookup()';
         command += 'trainStopTrackingApi.rebuildRemoteZonestops()';
 
-        command += '\')';
+        command += '")';
         console.log(command);
         this.messageInterface("/silent-command "+command);
     }
@@ -126,7 +144,7 @@ module.exports = class remoteCommands {
 	        event: "zones",
             zones: this.zonesDB
         };
-        this.messageInterface('/silent-command remote.call("trainTeleports","json",\'' + JSON.stringify(data).replace(/"/g, '\\"') + '\')');
+        this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify(data)) + '")');
     }
 	async scriptOutput(data){
 		if(data !== null){
