@@ -63,6 +63,12 @@ end
 
 local function serialize_inventory(inventory)
     local filters
+
+    local bar = nil
+    if inventory.hasbar() then
+        bar = inventory.getbar()
+    end
+
     if inventory.supports_filters() then
         filters = {}
         for i = 1, #inventory do
@@ -113,6 +119,7 @@ local function serialize_inventory(inventory)
     end
 
     return {
+        bar = bar,
         filters = filters,
         item_names = item_names,
         item_counts = item_counts,
@@ -217,6 +224,11 @@ local function deserialize_inventory(inventory, data)
     item_ammos, item_exports, item_labels, item_grids
     = data.item_names, data.item_counts, data.item_durabilities,
     data.item_ammos, data.item_exports, data.item_labels, data.item_grids
+
+    if inventory.hasbar() then
+        inventory.setbar(data.bar)
+    end
+
     for idx, name in pairs(item_names) do
         local slot = inventory[idx]
         slot.set_stack({
