@@ -563,7 +563,15 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             -- elseif targetState == CAN_SPAWN_RESULT.no_signals then
             --    alert_all_players(v.targetStation,"Station needs signals")
             elseif targetState == CAN_SPAWN_RESULT.no_station then
-                game.print("no_station")
+                game.print("Station "..v.targetStation.backer_name.." got removed after being set as teleport spawn target, trying to redirect")
+                local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train)
+                if newStation.valid then
+                    v.targetStation = newStation
+                    global.trainsToSpawn[k] = v
+                else
+                    game.print("No station with name "..v.targetStation.backer_name.." found, this train is lost forever.")
+                    global.trainsToSpawn[k] = nil
+                end
             end
 
         end
