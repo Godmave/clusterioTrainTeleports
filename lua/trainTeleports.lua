@@ -80,7 +80,11 @@ remote.add_interface("trainTeleports", {
             local targetStation = trainStopTrackingApi.find_station(data.destinationStationName, #train)
             local trainSchedule = data.train_schedule
 
-            if targetStation then
+            if not targetStation.valid then
+                targetStation = trainStopTrackingApi.find_station(data.destinationStationName, 1)
+            end
+
+            if targetStation.valid then
                 table.insert(global.trainsToSpawn, {targetStation = targetStation, train = train, schedule = trainSchedule })
                 if global.stationQueue[targetStation.backer_name] == nil then
                     global.stationQueue[targetStation.backer_name] = 1
