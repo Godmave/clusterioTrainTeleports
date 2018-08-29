@@ -613,7 +613,11 @@ end
 
 
 local function gui_zonemanager(player_index)
-    if tonumber(global.worldID) == 0 or global.lookUpTableIdToServer == nil or global.lookUpTableIdToServer[tonumber(global.worldID)] == nil or global.zones == nil then
+    if global.zones == nil then
+        global.zones = {}
+    end
+
+    if tonumber(global.worldID) == 0 or global.lookUpTableIdToServer == nil or global.lookUpTableIdToServer[tonumber(global.worldID)] == nil then
         return
     end
 
@@ -769,35 +773,6 @@ script.__on_configuration_changed = function()
 end
 
 
-script.on_event(defines.events.on_player_joined_game, function(e)
-    local player = game.players[e.player_index]
-
-    -- todo: maybe integrate with clusterio-mod after a rewrite of that ones gui
-    -- clusterio-main-config-gui-toggle-button
-
-    local anchorpoint = mod_gui.get_button_flow(player)
-    local button = anchorpoint["clusterio-trainteleport"]
-
-    if button then
-        button.destroy()
-        button = nil
-    end
-
-    -- for now only show this button to admins
-    if player.admin then
-        if not button then
-            button = anchorpoint.add{
-                type = "sprite-button",
-                name = "clusterio-trainteleport",
-                sprite = "utility/show_train_station_names_in_map_view",
-                style = mod_gui.button_style
-            }
-        end
-    end
-
-end)
-
-
 script.on_event(defines.events.script_raised_destroy, function(event)
     if global.custom_locomotive_gui then
         for k, state in pairs(global.custom_locomotive_gui) do
@@ -824,16 +799,6 @@ script.on_event(defines.events.on_gui_closed, function (event)
     end
 
     if global.custom_locomotive_gui then
-        local state = global.custom_locomotive_gui[player_index]
-        global.custom_locomotive_gui[player_index] = nil
-        gui_destroy(state)
-    end
-end)
-
-script.on_event(defines.events.on_player_removed, function (event)
-    local player_index = event.player_index
-
-    if global.custom_locomotive_gui and global.custom_locomotive_gui[player_index] then
         local state = global.custom_locomotive_gui[player_index]
         global.custom_locomotive_gui[player_index] = nil
         gui_destroy(state)
@@ -1105,6 +1070,50 @@ script.on_event(defines.events.on_gui_click, function (event)
                 gui_trainstops(state.rightPane, state)
             end
         end
+    end
+end)
+
+
+local function checkbutton(e)
+    local player = game.players[e.player_index]
+
+    -- todo: maybe integrate with clusterio-mod after a rewrite of that ones gui
+    -- clusterio-main-config-gui-toggle-button
+
+    local anchorpoint = mod_gui.get_button_flow(player)
+    local button = anchorpoint["clusterio-trainteleport"]
+
+    if button then
+        button.destroy()
+        button = nil
+    end
+
+    -- for now only show this button to admins
+    if player.admin then
+        if not button then
+            button = anchorpoint.add{
+                type = "sprite-button",
+                name = "clusterio-trainteleport",
+                sprite = "utility/show_train_station_names_in_map_view",
+                style = mod_gui.button_style
+            }
+        end
+    end
+
+end
+
+script.on_event(defines.events.on_player_joined_game, checkbutton)
+script.on_event(defines.events.on_player_promoted, checkbutton)
+script.on_event(defines.events.on_player_demoted, checkbutton)
+
+
+script.on_event(defines.events.on_player_removed, function (event)
+    local player_index = event.player_index
+
+    if global.custom_locomotive_gui and global.custom_locomotive_gui[player_index] then
+        local state = global.custom_locomotive_gui[player_index]
+        global.custom_locomotive_gui[player_index] = nil
+        gui_destroy(state)
     end
 end)
 

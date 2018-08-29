@@ -251,7 +251,7 @@ local function initAllTrainstopsAndZones()
     global.shared_train_stops = {}
     global.zoneStops = {}
     global.stopZones = {}
-
+-- todo: iterate all surfaces here
     local all_stops = game.surfaces[1].find_entities_filtered{type = "train-stop"};
     for _, trainstop in ipairs(all_stops) do
         updateTrainstop(trainstop)
@@ -263,8 +263,10 @@ local function initAllTrainstopsAndZones()
         worldId = global.worldID,
         zones = {}
     }
-    for _, z  in pairs(global.config.zones) do
-        package.zones[tostring(_)] = z
+    if global.config.zones then
+        for _, z  in pairs(global.config.zones) do
+            package.zones[tostring(_)] = z
+        end
     end
 
     game.write_file(fileName, json:encode(package) .. "\n", true, 0)

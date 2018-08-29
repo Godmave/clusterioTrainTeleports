@@ -161,7 +161,10 @@ class masterPlugin {
 
 			socket.on("registerTrainTeleporter", data => {
 				console.log("Registered train teleporter "+data.instanceID);
-				this.clients[data.instanceID] = new trainTeleporter({
+
+                this.trainstopsDatabase[data.instanceID] = {};
+
+                this.clients[data.instanceID] = new trainTeleporter({
 					master:this,
 					instanceID: data.instanceID,
 					socket,
@@ -169,6 +172,7 @@ class masterPlugin {
 				socket.emit("trainTeleporter_registered", {status:"ok"});
 				socket.emit("trainstopsDatabase", this.trainstopsDatabase);
 				socket.emit("zonesDatabase", this.zonesDatabase);
+
 			});
 
             socket.on("disconnect", data => {

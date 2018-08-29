@@ -107,7 +107,6 @@ module.exports = class remoteCommands {
     }
 
 
-	// todo: need to escape ',\
 	async applyTrainstopDB(){
 	    let trainstopsDB = this.trainstopDB;
         let command = 'remote.call("trainTeleports", "runCode", "global.trainstopsData = {';
