@@ -78,11 +78,15 @@ module.exports = class remoteCommands {
 
         this.socket.on("trainstop_blocked", async data => {
             console.log("remote trainstop_blocked: "+data.name);
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = true")');
+            let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = true")';
+            console.log(command);
+            this.messageInterface(command);
         });
         this.socket.on("trainstop_unblocked", async data => {
             console.log("remote trainstop_unblocked: "+data.name);
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = nil")');
+            let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = nil")';
+            console.log(command);
+            this.messageInterface(command);
         });
         this.socket.on("trainStopRenameSchedules", async data => {
             console.log("rename stop in schedules: "+data.oldName+" to "+data.name+" for instance "+data.instanceID);
