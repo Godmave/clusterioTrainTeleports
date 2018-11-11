@@ -340,16 +340,13 @@ local function deserialize_train_schedule(train, schedule)
     if schedule == nil then
         return
     end
-
-    for _, record in ipairs(schedule.records) do
-        local myInstanceName = trainStopTrackingApi.lookupIdToServerName(0)
-        for _, record in ipairs(schedule.records) do
-            -- remove the @ instanceName from local stations
-            if record.station:match("@ " .. myInstanceName) then
-                record.station = record.station:match("^(<CT?[0-9%+]*> .*) @")
-            end
-        end
-
+	
+    local myInstanceName = trainStopTrackingApi.lookupIdToServerName(0)
+    for index, record in ipairs(schedule.records) do
+       -- remove the @ instanceName from local stations
+       if record.station:match("@ " .. myInstanceName) then
+           schedule.records[index].station = record.station:match("^(<CT?[0-9%+]*> .*) @")
+       end
     end
 
     schedule.current = schedule.current % #schedule.records + 1
