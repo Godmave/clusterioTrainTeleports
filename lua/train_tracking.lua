@@ -391,7 +391,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     end
 
     for k, v in pairs(global.trainsToSend) do
-        if v.train.valid and not v.train.manual_mode then
+        if v.train.valid and not v.train.manual_mode and v.train.station ~= nil and v.train.station.valid then
             if global.trainLastSpawnTick[v.train.id] == nil or (event.tick - global.trainLastSpawnTick[v.train.id]) > TELEPORT_COOLDOWN_TICKS then
                 local train = v.train
                 local train_schedule = train.schedule
