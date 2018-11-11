@@ -1060,8 +1060,12 @@ script.on_event(defines.events.on_gui_click, function (event)
 
             if key == state.lastSelectedScheduleStop then
                 local schedule = state.train.schedule
-                schedule.current = key
-                state.train.schedule = schedule
+                if schedule ~= nil then
+                    schedule.current = key
+                    state.train.schedule = schedule
+                else
+                    gui_trainstops(state.rightPane, state)
+                end
             end
             gui_markScheduleStop(state, key)
         else
