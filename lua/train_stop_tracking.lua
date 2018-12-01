@@ -104,7 +104,7 @@ local function is_teleport_station(entity)
 end
 
 local function sanitize_stop_name(entity)
-    local prefix = ''
+    local prefix = '<C>'
     local name = entity.backer_name
 
     if is_teleport_station(entity) then
