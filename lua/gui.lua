@@ -177,7 +177,9 @@ local function gui_serverstops(parent, self, selectedServer)
     }
 
     if self.serverstops == nil or self.serverstops.valid == false then
-        self.serverstops = parent.add(options)
+        local scroll = parent.add{type = "scroll-pane"}
+        scroll.style.maximal_height = 500
+        self.serverstops = scroll.add(options)
     else
         self.serverstops.clear()
     end
