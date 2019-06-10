@@ -128,12 +128,12 @@ class trainTeleporter{
 		let zones = await this.master.getZones();
 
 		if(!zones[this.instanceID]) zones[this.instanceID] = {};
-		zones[this.instanceID][zoneIndex] = zone;
+		zones[this.instanceID][zoneIndex-1] = zone;
 		await this.master.propagateZones();
-	}
+    }
 	async removeZone(zoneIndex){
         let zones = await this.master.getZones();
-        delete zones[this.instanceID][zoneIndex];
+        delete zones[this.instanceID][zoneIndex-1];
         await this.master.propagateZones();
 	}
 }
