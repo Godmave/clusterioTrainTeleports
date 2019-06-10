@@ -71,7 +71,7 @@ local function gui_create(self)
     arrowDownButton.style.height = 32
 
     self.infoPane = root.add{type = 'frame', name = 'clusterio-trainteleport-infopane', direction = 'vertical', caption = "Info"}
-    self.infoPane.style.visible = false
+    self.infoPane.visible = false
 end
 local function gui_destroy(self)
     if self == nil then
@@ -275,7 +275,7 @@ end
 
 local function gui_markServerStop(state, station)
     state.lastSelectedServer = station
-    state.infoPane.style.visible = true
+    state.infoPane.visible = true
 
     if state.lastSelectedScheduleStop ~= nil then
         for _, element in ipairs(state.trainstops.children) do
@@ -304,7 +304,7 @@ end
 
 
 local function gui_markScheduleStop(state, key)
-    state.infoPane.style.visible = true
+    state.infoPane.visible = true
     state.lastSelectedScheduleStop = key
 
     -- unmark any server stops
@@ -433,21 +433,21 @@ local function addTabAndPanel(state, name, caption, selected)
     local tab
     tab = tabContainer.add{type="button", name="clusterio-trainteleport-zonemanager-tab-"..name, style="image_tab_slot", caption=caption}
     if selected then
-        tab.style.visible = false
+        tab.visible = false
     end
     tab.style.height = 30
     tab.style.width = 120
 
     tab = tabContainer.add{type="button", name="clusterio-trainteleport-zonemanager-tab-"..name.."-selected", style="image_tab_selected_slot", caption=caption}
     if not selected then
-        tab.style.visible = false
+        tab.visible = false
     end
     tab.style.height = 30
     tab.style.width = 120
 
     local tabPanel = container.add{type="frame", name="clusterio-trainteleport-zonemanager-"..name.."-frame", direction="vertical"}
     if not selected then
-        tabPanel.style.visible = false
+        tabPanel.visible = false
     end
 
     return tabPanel
@@ -642,7 +642,7 @@ local function gui_zonemanager(player_index)
     global.zonemanager[player_index].gui = player.gui.center.add{type = 'frame', name = 'clusterio-trainteleport-zonemanager', direction = 'vertical', caption = 'Zone-Manager'}
     local gui = global.zonemanager[player_index].gui
     player.opened = gui
-    gui.style.title_top_padding = 0
+    --gui.style.title_top_padding = 0
 
     global.zonemanager[player_index].container = gui.add{type="table", column_count=1}
     local tightFrame = global.zonemanager[player_index].container
@@ -914,13 +914,13 @@ script.on_event(defines.events.on_gui_click, function (event)
             local state = global.zonemanager[event.player_index]
             for _ in pairs(state.tabNames) do
                 if _ == tab then
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._].style.visible = false
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._..'-selected'].style.visible = true
-                    state.container['clusterio-trainteleport-zonemanager-'.._..'-frame'].style.visible = true
+                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._].visible = false
+                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._..'-selected'].visible = true
+                    state.container['clusterio-trainteleport-zonemanager-'.._..'-frame'].visible = true
                 else
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._].style.visible = true
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._..'-selected'].style.visible = false
-                    state.container['clusterio-trainteleport-zonemanager-'.._..'-frame'].style.visible = false
+                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._].visible = true
+                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._..'-selected'].visible = false
+                    state.container['clusterio-trainteleport-zonemanager-'.._..'-frame'].visible = false
                 end
             end
 
