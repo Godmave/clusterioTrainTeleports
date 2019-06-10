@@ -148,12 +148,11 @@ end
 local function gui_serverdropdown(parent, self)
     local reachableServers = {}
 
+    -- Remove restriction that servers that appear in dropdown
+
     for _, server in pairs(self.remote_data) do
-        for __ in pairs(self.reachableStops) do
-            if __ == server.name then
-                table.insert(reachableServers, server)
-            end
-        end
+        
+        table.insert(reachableServers, server)
     end
 
     self.reachableServers = reachableServers
@@ -453,6 +452,7 @@ local function addTabAndPanel(state, name, caption, selected)
     return tabPanel
 end
 
+-- drops and recreates the global zonetable for the current player using global.config.zones
 local function gui_zonemanager_zones(player_index)
     global.zonemanager[player_index].zonesFrame.clear()
     global.zonemanager[player_index].zoneTable = global.zonemanager[player_index].zonesFrame.add{type="table", name = 'clusterio-trainteleport-zonemanager-zone', column_count=6, draw_horizontal_line_after_headers = false}
@@ -682,6 +682,7 @@ script.on_event(defines.events.on_gui_selection_state_changed, function(event)
 
     if string.find(element_name, 'restriction-',1,true) then
         local state = global.zonemanager[event.player_index]
+        if state == nil then global.zonemanager[event.player_index] = {} end
         element_name = string.gsub(element_name, '^restriction%-', "")
 
         if element_name == "zone" then
@@ -767,7 +768,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
     state.train = train
 
     gui_create(state)
-    gui_populate(state, global.trainstopsData)
+    gui_populate(state, global.trainstopsData)    
 end)
 
 script.__on_configuration_changed = function()
@@ -821,8 +822,8 @@ script.on_event(defines.events.on_gui_click, function (event)
     if string.find(element_name, 'zonemanager-zone-',1,true) then
         local key = string.gsub(element_name, 'zonemanager%-zone%-', "")
         local fields = key:split('-')
-        local _ = fields[1] or ""
-        local what = fields[2] or ""
+        local _ = fields[1] or "" --zoneIndex
+        local what = fields[2] or "" --guiClickType
 
         if _ == "" or what == "" then
             return
@@ -839,46 +840,17 @@ script.on_event(defines.events.on_gui_click, function (event)
         end
 
         if what == "save" then
-
             trainStopTrackingApi.undrawZoneBorders(_)
-
-            zoneConfig.topleft = zoneConfig.topleft or {}
-            zoneConfig.bottomright = zoneConfig.bottomright or {}
-
             local prefix = 'clusterio-trainteleport-zonemanager-zone-'.._
-
             local x,y,w,h
             x = tonumber(zone[prefix.."-tlx"].text) or 0
             y = tonumber(zone[prefix.."-tly"].text) or 0
             w = tonumber(zone[prefix.."-w"].text) or 0
             h = tonumber(zone[prefix.."-h"].text) or 0
-
-
-            zoneConfig.name = zone[prefix.."-name"].text
-            zoneConfig.surface = "nauvis"
-            zoneConfig.topleft[1] = x
-            zoneConfig.topleft[2] = y
-            zoneConfig.bottomright[1] = x+w
-            zoneConfig.bottomright[2] = y+h
-
-            if w * h > 0 then
-                local newStops = game.surfaces[1].find_entities_filtered{area={left_top = {zoneConfig.topleft[1], zoneConfig.topleft[2]}, right_bottom = {zoneConfig.bottomright[1], zoneConfig.bottomright[2]}}, type = "train-stop"};
-                for _, trainstop in ipairs(newStops) do
-                    allAffectedStops[trainstop.unit_number] = trainstop
-                end
-            end
-
-            global.config.zones[tonumber(_)] = zoneConfig
-            trainStopTrackingApi.drawZoneBorders(_)
-
-            local package = {
-                event = "savezone",
-                worldId = global.worldID,
-                zoneId = _,
-                zone = zoneConfig
-            }
-            game.write_file(fileName, json:encode(package) .. "\n", true, 0)
-
+            local zoneName = zone[prefix.."-name"].text
+            -- create zone
+            CreateZone(zoneName, x, y, w, h, tonumber(_), true)
+            -- refresh gui
             gui_zonemanager_zones(event.player_index)
         elseif what == "remove" and global.config.zones[tonumber(_)] ~= nil then
             trainStopTrackingApi.undrawZoneBorders(_)
@@ -948,13 +920,25 @@ script.on_event(defines.events.on_gui_click, function (event)
 
 
         if what == "save" then
+
+            local serverToSaveIndex = "clusterio-trainteleport-restriction-".._.."-server"
+            local restrictionsTable = global.zonemanager[event.player_index].restrictionsTable
+            local restrictionsTableItem = restrictionsTable[serverToSaveIndex]
+            local serverToSave = restrictionsTableItem.get_item(restrictionsTableItem.selected_index)
+            --game.write_file("trainTeleports.log", "Saving Zone Restriction: serverToSaveIndex = "..serverToSaveIndex.."\n", true, 0)
+            --game.write_file("trainTeleports.log", "Saving Zone Restriction: serverToSave = "..serverToSave.."\n", true, 0)
+
+
+            local zoneToSaveIndex = "clusterio-trainteleport-restriction-".._.."-zone"
+            --game.write_file("trainTeleports.log", "Saving Zone Restriction: zoneToSaveIndex = "..zoneToSaveIndex.."\n", true, 0)
+
             -- save or add this restriction to the currently selected zone
             global.config.zones[zoneIndex].restrictions[tonumber(_)] = {
-                server = global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-server"].get_item(global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-server"].selected_index),
+                server = serverToSave,
                 zone = nil
             }
-            if global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index then
-                global.config.zones[zoneIndex].restrictions[tonumber(_)]["zone"] = global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].get_item(global.zonemanager[event.player_index].restrictionsTable["clusterio-trainteleport-restriction-".._.."-zone"].selected_index)
+            if restrictionsTable[zoneToSaveIndex].selected_index then
+                global.config.zones[zoneIndex].restrictions[tonumber(_)]["zone"] = restrictionsTable[zoneToSaveIndex].get_item(restrictionsTable[zoneToSaveIndex].selected_index)
             end
         elseif what == "remove" then
             -- remove this restriction from the currently selected zone
@@ -1136,5 +1120,75 @@ local guiApi = setmetatable({
     __metatable = false,
 })
 
+
+-- creates a new trainTeleport zone
+function CreateZone(name, topLeftX, topLeftY, width, height, zoneIndex, drawZoneBorders)
+
+    if global.config == nil then global.config = {} end
+    if global.config.zones == nil then global.config.zones = {} end
+
+    local zoneConfig = {}
+    zoneConfig.topleft = {}
+    zoneConfig.bottomright = {}
+    zoneConfig.name = name
+    zoneConfig.surface = "nauvis"
+    zoneConfig.topleft[1] = topLeftX
+    zoneConfig.topleft[2] = topLeftY
+    zoneConfig.bottomright[1] = topLeftX + width
+    zoneConfig.bottomright[2] = topLeftY + height
+
+    local allAffectedStops = {}
+    if width * height > 0 then
+        local newStops = game.surfaces[1].find_entities_filtered{area={left_top = {zoneConfig.topleft[1], zoneConfig.topleft[2]}, right_bottom = {zoneConfig.bottomright[1], zoneConfig.bottomright[2]}}, type = "train-stop"};
+        for _, trainstop in ipairs(newStops) do
+            allAffectedStops[trainstop.unit_number] = trainstop
+        end
+    end
+
+    if(zoneIndex == nil or zoneIndex <= 0) then
+        zoneIndex = #global.config.zones
+    end
+    global.config.zones[zoneIndex] = zoneConfig
+
+    if(drawZoneBorders) then
+        trainStopTrackingApi.drawZoneBorders(zoneIndex)
+    end
+
+    local package = {
+        event = "savezone",
+        worldId = global.worldID,
+        zoneId = zoneIndex,
+        zone = zoneConfig
+    }
+
+    local encodedPackage = json:encode(package)
+
+    log("Creating zone: ".. encodedPackage)
+    game.write_file("zoneApi.log", "Creating zone: ".. encodedPackage .. "\n", true)
+
+    -- send to master
+    game.write_file(fileName, encodedPackage .. "\n", true, 0)
+
+    return zoneConfig
+end
+
+-- e.g. CreateZoneRestriction('FromZoneOnLocalServer','TargetServer','TargetZone')
+function CreateZoneRestriction(zoneIndex, toZoneServerName, toZoneName)
+    local fromZone = global.config.zones[zoneIndex]
+    if fromZone.restrictions == nil then fromZone.restrictions = {} end
+    -- add this restriction to the currently selected zone
+    table.insert(fromZone.restrictions, {
+        server = toZoneServerName,
+        zone = toZoneName
+    })
+    local package = {
+        event = "savezone",
+        worldId = global.worldID,
+        zoneId = zoneIndex,
+        zone = fromZone
+    }
+    -- send to master
+    game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+end
 
 return guiApi
