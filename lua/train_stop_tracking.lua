@@ -431,29 +431,29 @@ end
 -- if there is no free station take the one with no queued trains
 -- if all stations have queued trains report to the cluster that this stationname @ instance is full atm
 local function find_station(stationName, trainSize, ignoreThisStationEntity)
-    local station = {}
+    local laststation,station = {},{}
     local nextBestStation, bestStation = nil, nil
 
     -- local lookup
     if not string.find(stationName,"@", 1, true) then
         local fullName = stationName.." @ "..lookupIdToServerName()
 
-        if global.shared_train_stops and global.blockedStations[fullName] ~= true then
+        if global.shared_train_stops then -- and global.blockedStations[fullName] ~= true then
             for i,v in pairs(global.shared_train_stops) do
                 if v.name == stationName and v ~= ignoreThisStationEntity and v.entity.valid then
-                    station = v.entity
+                    laststation = v.entity
 
-                    if global.stationQueue[station.unit_number] == nil then
-                        global.stationQueue[station.unit_number] = 0
+                    if global.stationQueue[laststation.unit_number] == nil then
+                        global.stationQueue[laststation.unit_number] = 0
                     end
 
-                    if global.stationQueue[station.unit_number] == 0 then
-                        local spawnStatus = can_spawn_train(station, trainSize)
+                    if global.stationQueue[laststation.unit_number] == 0 then
+                        local spawnStatus = can_spawn_train(laststation, trainSize)
                         if spawnStatus == CAN_SPAWN_RESULT.ok or spawnStatus == CAN_SPAWN_RESULT.no_signals then
-                            bestStation = station
+                            bestStation = laststation
                             break
                         elseif nextBestStation == nil and spawnStatus > CAN_SPAWN_RESULT.ok then
-                            nextBestStation = station
+                            nextBestStation = laststation
                         end
                     end
                 end
@@ -466,7 +466,7 @@ local function find_station(stationName, trainSize, ignoreThisStationEntity)
             end
 
             -- this should only ever not be true if the train in question is too long for any of the stations or no station is valid at all
-            if station.unit_number then
+            if station and station.valid and station.unit_number then
                 global.stationQueue[station.unit_number] = global.stationQueue[station.unit_number] + 1
                 if global.stationQueue[station.unit_number] > 1 and global.blockedStations[fullName] ~= true then
                     -- message cluster that this station is full atm

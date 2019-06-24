@@ -536,8 +536,10 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             if created_train then
                 deserialize_train_schedule(created_train, v.schedule)
                 global.trainsToSpawn[k] = nil
-                global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
-                if global.stationQueue[v.targetStation.unit_number] ~= nil then
+                if global.stationQueue[v.targetStation.backer_name] > 0 then
+                    global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
+                end
+                if global.stationQueue[v.targetStation.unit_number] > 0 then
                     global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
                     global.trainLastSpawnTick[created_train.id] = event.tick;
                 end
@@ -552,32 +554,54 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 alert_all_players(v.targetStation,"Could not spawn train, player standing on the rails? Trying to redirect")
                 local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train)
                 if newStation.valid then
-                    global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                    if global.stationQueue[v.targetStation.unit_number] > 0 then
+                        global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                    end
                     v.targetStation = newStation
                     global.trainsToSpawn[k] = v
                 end
             end
         else
+            local reroute = false
             if targetState == CAN_SPAWN_RESULT.blocked then
-                alert_all_players(v.targetStation,"Station is blocked")
+                alert_all_players(v.targetStation,"Station is blocked, trying to redirect")
+                reroute = true
             elseif targetState == CAN_SPAWN_RESULT.no_adjacent_rail then
-                alert_all_players(v.targetStation,"Station has no rails")
+                alert_all_players(v.targetStation,"Station has no rails, trying to redirect")
+                reroute = true
             elseif targetState == CAN_SPAWN_RESULT.not_enough_track then
-                alert_all_players(v.targetStation,"Station has not enough room")
+                alert_all_players(v.targetStation,"Station has not enough room, trying to redirect")
+                reroute = true
             -- elseif targetState == CAN_SPAWN_RESULT.no_signals then
             --    alert_all_players(v.targetStation,"Station needs signals")
             elseif targetState == CAN_SPAWN_RESULT.no_station then
                 game.print("Station "..v.targetStation.backer_name.." got removed after being set as teleport spawn target, trying to redirect")
+                reroute = true
+            end
+
+            if reroute then
                 local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train)
+                if not newStation.valid then
+                    game.print("Station "..v.targetStation.backer_name.." does not have the right length. Keeping the train in limbo")
+                    newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, 1)
+                end
                 if newStation.valid then
+                    if global.stationQueue[v.targetStation.unit_number] > 0 then
+                        global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                    end
+
                     v.targetStation = newStation
                     global.trainsToSpawn[k] = v
                 else
-                    game.print("No station with name "..v.targetStation.backer_name.." found, this train is lost forever.")
-                    global.trainsToSpawn[k] = nil
+                    game.print("No station with name "..v.targetStation.backer_name.." found, keeping this train in limbo (forever)")
+                    local fullName = v.targetStation.backer_name.." @ "..trainStopTrackingApi.lookupIdToServerName()
+                    if not global.blockedStations[fullName] then
+                        game.print("block station in redirect "..fullName)
+                        global.blockedStations[fullName] = true
+                        game.write_file(fileName, "event:trainstop_blocked|name:"..fullName.."\n", true, 0)
+                    end
                 end
             end
-
         end
     end
 
