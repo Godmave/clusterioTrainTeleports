@@ -40,12 +40,11 @@ module.exports = class remoteCommands {
 				var returnValue;
                 var mainCode = await this.getSafeLua("sharedPlugins/trainTeleports/lua/trainTeleports.lua");
 
-                var jsoncode = await this.getSafeLua("sharedPlugins/trainTeleports/lua/json.lua");
                 var trainCode = await this.getSafeLua("sharedPlugins/trainTeleports/lua/train_tracking.lua");
                 var trainstopCode = await this.getSafeLua("sharedPlugins/trainTeleports/lua/train_stop_tracking.lua");
                 var guiCode = await this.getSafeLua("sharedPlugins/trainTeleports/lua/gui.lua");
 
-                if(mainCode) returnValue = await messageInterface("/silent-command remote.call('hotpatch', 'update', '"+pluginConfig.name+"', '"+pluginConfig.version+"', '"+mainCode+"', \{json = '"+jsoncode+"', train_tracking = '"+trainCode+"', train_stop_tracking = '"+trainstopCode+"', gui = '"+guiCode+"'\})");
+                if(mainCode) returnValue = await messageInterface("/silent-command remote.call('hotpatch', 'update', '"+pluginConfig.name+"', '"+pluginConfig.version+"', '"+mainCode+"', \{train_tracking = '"+trainCode+"', train_stop_tracking = '"+trainstopCode+"', gui = '"+guiCode+"'\})");
                 if(returnValue) console.log(returnValue);
 
 
@@ -131,7 +130,10 @@ module.exports = class remoteCommands {
             for(let trainstop in trainstopsDB[instanceID]){
                 for(let sdi in trainstopsDB[instanceID][trainstop].stops) {
                     let stopdata = trainstopsDB[instanceID][trainstop].stops[sdi];
-                    command += 'global.remoteStopZones[\\"'+instanceID+'\\"][\\"'+this.doubleEscape(trainstop)+'\\"]={\\"' + stopdata.zones.join('","') + '\\"}'
+                    if(!stopdata.zones[0]) {
+                        stopdata.zones = [];
+                    }
+                    command += 'global.remoteStopZones[\\"'+instanceID+'\\"][\\"'+this.doubleEscape(trainstop)+'\\"]={\\"' + stopdata.zones.join('\\",\\"') + '\\"}'
                 }
             }
         }

@@ -4,7 +4,7 @@ TELEPORT_WORK_INTERVAL = 15
 TELEPORT_COOLDOWN_TICKS = 120
 
 fileName = "trainTeleports.txt"
-json = require("json")
+-- json = require("json")
 
 trainTrackingApi = require("train_tracking")
 trainStopTrackingApi = require("train_stop_tracking")
@@ -73,7 +73,7 @@ remote.add_interface("trainTeleports", {
         trainStopTrackingApi.initAllTrainstopsAndZones()
     end,
     json = function(jsonString)
-        local data = json:decode(jsonString)
+        local data = game.json_to_table(jsonString)
 
         if data.event == "teleportTrain" then
             local train = data.train
@@ -96,7 +96,7 @@ remote.add_interface("trainTeleports", {
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
-            -- log(serpent.block(global.zones))
+            log(serpent.block(global.zones))
         end
 
     end,
@@ -128,7 +128,11 @@ remote.add_interface("trainTeleports", {
         end
     end,
     runCode = function(code)
-        load(code, "trainTeleports code injection failed!", "bt", _ENV)()
+        log("start running code:")
+        log(code);
+        load(code, "trainTeleports code injection failed!", "t", _ENV)()
+        log("done running code")
+
     end
 })
 

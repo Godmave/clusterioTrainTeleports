@@ -1,11 +1,8 @@
 --[[
 todo:
 - show stops per zone
-- use restrictions to check for reachability of target stops
-- use restrictions in schedule-editor to only show valid targets from selected stop
 later:
 - custom trainstop gui
-0.17?:
 - show distance to destination
 - remote train "map"
 ]]
@@ -38,17 +35,20 @@ local function gui_create(self)
         caption = "Clusterio Trainstops",
         column_count = 3
     }
+    maintable.vertical_centering = false
+    maintable.style.horizontal_spacing = 0
+    maintable.style.vertical_spacing = 0
 
 
     self.root = root
     root.style.horizontal_spacing = 0
     root.style.vertical_spacing = 0
 
-    maintable.style.horizontal_spacing = 0
-    maintable.style.vertical_spacing = 0
 
-    self.leftPane = maintable.add{type = 'frame', name = 'clusterio-trainteleport-serverstops', direction = 'vertical', caption = "Clusterio Trainstops"}
-    self.rightPane = maintable.add{type = 'frame', name = 'clusterio-trainteleport-traintops', direction = 'vertical', caption = "Train-Schedule"}
+    self.leftPane = root.add{type = 'frame', name = 'clusterio-trainteleport-serverstops', direction = 'vertical', caption = "Clusterio Trainstops"}
+    self.rightPane = root.add{type = 'frame', name = 'clusterio-trainteleport-traintops', direction = 'vertical', caption = "Train-Schedule"}
+
+    --[[
     self.toolPane = maintable.add{type = 'frame', name = 'clusterio-trainteleport-toolpane', direction = 'vertical', caption = ""}
     self.toolPane.style.width = 38
     self.toolPane.style.left_padding = 0
@@ -69,6 +69,7 @@ local function gui_create(self)
     local arrowDownButton = self.toolPane.add{type="sprite-button", name="clusterio-trainteleport-movedown", sprite="utility/hint_arrow_down"}
     arrowDownButton.style.width = 32
     arrowDownButton.style.height = 32
+    ]]
 
     self.infoPane = root.add{type = 'frame', name = 'clusterio-trainteleport-infopane', direction = 'vertical', caption = "Info"}
     self.infoPane.visible = false
@@ -107,66 +108,137 @@ local function gui_generic_dropdown(data, key, name, selectedIndex)
     return options
 end
 
-local function collectReachables(serverName, stopName)
+
+--todo?: allow own zone as reachable, but maybe not teleportable when not explicitly defined
+local function collectReachables(serverName, stopName, onlyRestricted)
     local serverId = trainStopTrackingApi.lookupNameToId(serverName)
     local remoteStopZones = global.remoteStopZones[tostring(serverId)]
-    local zones = remoteStopZones and remoteStopZones[stopName] or {}
+    local zones = stopName and remoteStopZones and remoteStopZones[stopName] or {}
 
     local reachableStops = {}
     reachableStops[serverName] = {}
 
     if zones and #zones > 0 then
-        for _, stopZone in pairs(zones) do
-            local serverZones = global.zones[tostring(serverId)]
-            if serverZones ~= nil then
+        -- fetch all server zones
+        local serverZones = global.zones[tostring(serverId)]
+        if serverZones ~= nil then
+            -- iterate all stop zones ...
+            for _, stopZone in pairs(zones) do
+                -- and get the zone definition ...
                 for __, zone in pairs(serverZones) do
-                    if zone.name == stopZone then
-                        if zone.restrictions and #zone.restrictions > 0 then
-                            for ___, restriction in pairs(zone.restrictions) do
-                                reachableStops[restriction.server] = reachableStops[restriction.server] or {}
-                                reachableStops[restriction.server][restriction.zone] = {}
 
-                                for ____, stopName in pairs(global.remoteZoneStops[tostring(serverId)][stopZone]) do
-                                    reachableStops[restriction.server][restriction.zone][stopName] = true
+                    if zone.name~="" or serverId==global.worldID then
+                        -- of any match or if this stop isn't in a teleport zone from all zones
+                        if zone.name == stopZone or stopZone == "" then
+                            -- if there are restrictions set ...
+                            if zone.restrictions and #zone.restrictions > 0 then
+                                -- collect the reachable stops per their definition
+                                for ___, restriction in pairs(zone.restrictions) do
+                                    if stopZone~="" or restriction.server == serverName then
+                                        reachableStops[restriction.server] = reachableStops[restriction.server] or {}
+                                        reachableStops[restriction.server][restriction.zone] = {}
+                                        for ____, stopName in pairs(global.remoteZoneStops[tostring(trainStopTrackingApi.lookupNameToId(restriction.server))][restriction.zone]) do
+                                            reachableStops[restriction.server][restriction.zone][stopName] = true
+                                        end
+
+                                    end
                                 end
-                            end
-                        else
-                            for _, s in ipairs(global.trainstopsData) do
-                                reachableStops[s.name] = {}
+
+                                reachableStops[serverName] = reachableStops[serverName] or {}
+                                reachableStops[serverName][zone.name] = {}
+                                local stops = global.remoteZoneStops[tostring(serverId)][zone.name]
+                                for stopId, stopName in pairs(stops) do
+                                    reachableStops[serverName][zone.name][stopName] = true
+                                end
+
+                            elseif not onlyRestricted then
+                                -- allow any stop on the same server
+                                reachableStops[serverName] = reachableStops[serverName] or {}
+                                for zoneName, stops in pairs(global.remoteZoneStops[tostring(serverId)]) do
+                                    reachableStops[serverName][zoneName] = {}
+                                    for stopId, stopName in pairs(stops) do
+                                        reachableStops[serverName][zoneName][stopName] = true
+                                    end
+                                end
+
+
+                                -- and IF this is a teleport stop any teleport stop on other servers
+                                if stopZone ~= "" then
+                                    -- teleport stop
+
+                                    for remoteServerId, zones in pairs(global.remoteZoneStops) do
+                                        local remoteServerName = trainStopTrackingApi.lookupIdToServerName(remoteServerId)
+                                        reachableStops[remoteServerName] = {}
+                                        for zoneName, stops in pairs(zones) do
+                                            reachableStops[remoteServerName][zoneName] = {}
+                                            for stopId, stopName in pairs(stops) do
+                                                reachableStops[remoteServerName][zoneName][stopName] = true
+                                            end
+                                        end
+                                    end
+                                end
+
+                                -- since we got all possible stops stop iterating
+                                goto gotthemall
                             end
                         end
                     end
                 end
             end
         end
-    end
 
+        ::gotthemall::
+
+        -- add all non-teleporting stops from that server
+        if not onlyRestricted then
+            if global.remoteZoneStops and global.remoteZoneStops[tostring(serverId)] and global.remoteZoneStops[tostring(serverId)][""] then
+                reachableStops[serverName] = reachableStops[serverName] or {}
+                reachableStops[serverName][""] = reachableStops[serverName][""] or {}
+                for ____, stopName in pairs(global.remoteZoneStops[tostring(serverId)][""]) do
+                    reachableStops[serverName][""][stopName] = true
+                end
+            end
+        end
+    else
+        -- most likely when no stop is added to the schedule yet, add all stops from this server
+        reachableStops[serverName] = {}
+        for zoneName, stops in pairs(global.remoteZoneStops[tostring(serverId)]) do
+            reachableStops[serverName][zoneName] = {}
+            for stopId, stopName in pairs(stops) do
+                reachableStops[serverName][zoneName][stopName] = true
+            end
+        end
+    end
+log(serpent.block(reachableStops))
     return reachableStops
 end
 
 
-local function gui_serverdropdown(parent, self)
+local function gui_serverdropdown(parent, self, selectedServer)
     local reachableServers = {}
-
-    -- Remove restriction that servers that appear in dropdown
+    local selectedServerIndex = 1
 
     for _, server in pairs(self.remote_data) do
-        
-        table.insert(reachableServers, server)
+        for __ in pairs(self.reachableStops) do
+            if __ == server.name then
+                table.insert(reachableServers, server)
+                if server.name == selectedServer then
+                    selectedServerIndex = #reachableServers
+                end
+            end
+        end
     end
 
     self.reachableServers = reachableServers
 
 
-    local options = gui_generic_dropdown(reachableServers, "name", "clusterio-trainteleport-server", 1)
+    local options = gui_generic_dropdown(reachableServers, "name", "clusterio-trainteleport-server", selectedServerIndex)
 
     local flow = parent.add{type="flow", direction="horizontal"}
     flow.add{type="label", caption="Server:"}
     self.serverdropdown = flow.add(options)
 end
 
--- todo: if same server as current selected schedule-stop show all stops
--- todo: if different server as current selected schedule-stop show only reachable stops
 local function gui_serverstops(parent, self, selectedServer)
     local options = {
         type = "table",
@@ -196,8 +268,20 @@ local function gui_serverstops(parent, self, selectedServer)
     for _, server in ipairs(self.remote_data) do
         if server.name == selectedServer then
             for _, station in ipairs(server.stations) do
-                self.serverstops.add{type="label", name="clusterio-trainteleport-serverstop-".._, caption = station, style="hoverable_bold_label"}
-                self.serverstopdata[tonumber(_)] = station
+                local reachable = false
+                for zone, zoneStops in pairs(self.reachableStops[selectedServer]) do
+                    for zoneStop in pairs(zoneStops) do
+                        if zoneStop == station then
+                            reachable = true
+                            break
+                        end
+                    end
+                end
+
+                if reachable then
+                    self.serverstops.add{type="label", name="clusterio-trainteleport-serverstop-".._, caption = station, style="hoverable_bold_label"}
+                    self.serverstopdata[tonumber(_)] = station
+                end
             end
         end
     end
@@ -243,37 +327,40 @@ local function gui_update_infopanel(state, server, stop)
     infoTable.add{type="label", caption = "Status:"}
     infoTable.add{type="label", caption = status}
 
-    local reachableStops = collectReachables(server, stop)
+    if stopType == "teleport" then
 
-    local t = infoTable.add{type="flow", direction="vertical"}
-    t.style.vertical_align = "top"
-    t.add{type="label", caption = "Restriction:"}
+        local reachableStops = collectReachables(server, stop, true)
 
-    local restrictionTable = infoTable.add{type="table", column_count=2}
-    local anyRestrictions = false
-    for server, zones in pairs(reachableStops) do
-        if table_size(zones) > 0 then
-            anyRestrictions = true
-            local t = restrictionTable.add{type="flow", direction="vertical"}
-            t.style.vertical_align = "top"
-            t.add{type="label", caption=server}
+        local t = infoTable.add{type="flow", direction="vertical"}
+        t.style.vertical_align = "top"
+        t.add{type="label", caption = "Restriction:"}
 
-            local zoneFlow = restrictionTable.add{type="flow", direction="vertical"}
-            for zone, stops in pairs(zones) do
-                zoneFlow.add{type="label", caption=zone}
+        local restrictionTable = infoTable.add{type="table", column_count=2}
+        local anyRestrictions = false
+        for server, zones in pairs(reachableStops) do
+            if table_size(zones) > 0 then
+                anyRestrictions = true
+                local t = restrictionTable.add{type="flow", direction="vertical"}
+                t.style.vertical_align = "top"
+                t.add{type="label", caption=server}
+
+                local zoneFlow = restrictionTable.add{type="flow", direction="vertical"}
+                for zone, stops in pairs(zones) do
+                    zoneFlow.add{type="label", caption=zone}
+                end
             end
         end
-    end
 
-    if not anyRestrictions then
-        restrictionTable.add{type="label", caption="none"}
-    end
+        if not anyRestrictions then
+            restrictionTable.add{type="label", caption="none"}
+        end
 
+    end
 
 end
 
 local function gui_markServerStop(state, station)
-    state.lastSelectedServer = station
+    state.lastSelectedStop = station
     state.infoPane.visible = true
 
     if state.lastSelectedScheduleStop ~= nil then
@@ -307,8 +394,8 @@ local function gui_markScheduleStop(state, key)
     state.lastSelectedScheduleStop = key
 
     -- unmark any server stops
-    if state.lastSelectedServer ~= nil then
-        state.lastSelectedServer = nil
+    if state.lastSelectedStop ~= nil then
+        state.lastSelectedStop = nil
         for _, element in ipairs(state.serverstops.children) do
             element.style.font_color = {r=1,b=1,g=1,a=1}
         end
@@ -316,13 +403,15 @@ local function gui_markScheduleStop(state, key)
     end
 
     local reachableStops = {}
+    local stopName, serverName
+    
 
     if #state.trainstops.children > 0 then
         for _, element in ipairs(state.trainstops.children) do
             if _ == key then
                 element.style.font_color = {r=0.7,b=0.7,g=0,a=1}
 
-                local stopName, serverName = trainStopTrackingApi.resolveStop(element.caption)
+                stopName, serverName = trainStopTrackingApi.resolveStop(element.caption)
                 gui_update_infopanel(state, serverName, stopName)
                 reachableStops = collectReachables(serverName, stopName)
             else
@@ -331,15 +420,15 @@ local function gui_markScheduleStop(state, key)
         end
     else
         -- show only this server
-        local thisServer = trainStopTrackingApi.lookupIdToServerName()
-        reachableStops[thisServer] = {}
+        serverName = trainStopTrackingApi.lookupIdToServerName()
+        reachableStops = collectReachables(serverName)
     end
 
     state.reachableStops = reachableStops
 
     state.leftPane.clear()
-    gui_serverdropdown(state.leftPane, state)
-    gui_serverstops(state.leftPane, state)
+    gui_serverdropdown(state.leftPane, state, serverName)
+    gui_serverstops(state.leftPane, state, serverName)
 end
 
 local function gui_trainstops_add(self, station, _, current)
@@ -642,7 +731,6 @@ local function gui_zonemanager(player_index)
     global.zonemanager[player_index].gui = player.gui.center.add{type = 'frame', name = 'clusterio-trainteleport-zonemanager', direction = 'vertical', caption = 'Zone-Manager'}
     local gui = global.zonemanager[player_index].gui
     player.opened = gui
-    --gui.style.title_top_padding = 0
 
     global.zonemanager[player_index].container = gui.add{type="table", column_count=1}
     local tightFrame = global.zonemanager[player_index].container
@@ -776,6 +864,24 @@ script.__on_configuration_changed = function()
 end
 
 
+-- refresh the trainstop list when a player changes the schedule
+script.on_event(defines.events.on_train_schedule_changed, function(event)
+    local train = event.train
+    local player_index = event.player_index
+    if player_index then
+        if global.custom_locomotive_gui then
+            for _, state in pairs(global.custom_locomotive_gui) do
+                if state.train.id == train.id then
+                    gui_trainstops(state.rightPane, state)
+                end
+            end
+        end
+
+    end
+
+end)
+
+
 script.on_event(defines.events.script_raised_destroy, function(event)
     if global.custom_locomotive_gui then
         for k, state in pairs(global.custom_locomotive_gui) do
@@ -861,7 +967,7 @@ script.on_event(defines.events.on_gui_click, function (event)
                 worldId = global.worldID,
                 zoneId = _
             }
-            game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+            game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 
             gui_zonemanager_zones(event.player_index)
         else
@@ -953,7 +1059,7 @@ script.on_event(defines.events.on_gui_click, function (event)
             zoneId = zoneIndex,
             zone = global.config.zones[zoneIndex]
         }
-        game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+        game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
         gui_zonemanager_restrictions(event.player_index)
     end
 
@@ -967,7 +1073,7 @@ script.on_event(defines.events.on_gui_click, function (event)
             local station = state.serverstopdata[tonumber(key)] or "unknown"
 
             -- only copy if already selected, simulating a double click
-            if state.lastSelectedServer and station == state.lastSelectedServer then
+            if state.lastSelectedStop and station == state.lastSelectedStop then
                 local selectedServer = state.serverdropdown.items[state.serverdropdown.selected_index]
                 local currentServer = trainStopTrackingApi.lookupIdToServerName()
 
@@ -985,10 +1091,28 @@ script.on_event(defines.events.on_gui_click, function (event)
                     }
                 end
 
-                -- todo: use this only if we are sure we can teleport to the station
-                -- by iterating through the reachableStops
+                -- only add if both stops are teleport stops and reachable
                 local override_wait_condition
-                if true then
+                if schedule.records and state.lastSelectedScheduleStop and schedule.records[state.lastSelectedScheduleStop] then
+                    local lastStop = schedule.records[state.lastSelectedScheduleStop].station
+                    log("going from: " .. lastStop .. " to: " .. station)
+
+                    local lastStopServerName
+                    if not string.find(lastStop,"@", 1, true) then
+                        lastStopServerName = currentServer
+                    else
+                        lastStopServerName = lastStop:match("@ (.*)$")
+                    end
+
+                    if string.find(lastStop, '<CT',1,true)
+                            and string.find(station, '<CT',1,true)
+                            and lastStopServerName ~= selectedServer
+                    then
+                        override_wait_condition = true
+                    end
+                end
+
+                if override_wait_condition then
                     override_wait_condition = {
                         type = "circuit",
                         compare_type = "or",
@@ -1147,7 +1271,11 @@ function CreateZone(name, topLeftX, topLeftY, width, height, zoneIndex, drawZone
 
     if(zoneIndex == nil or zoneIndex <= 0) then
         zoneIndex = #global.config.zones
+    else
+        zoneConfig.restrictions = global.config.zones[zoneIndex].restrictions
     end
+
+
     global.config.zones[zoneIndex] = zoneConfig
 
     if(drawZoneBorders) then
@@ -1161,7 +1289,7 @@ function CreateZone(name, topLeftX, topLeftY, width, height, zoneIndex, drawZone
         zone = zoneConfig
     }
 
-    local encodedPackage = json:encode(package)
+    local encodedPackage = game.table_to_json(package)
 
     log("Creating zone: ".. encodedPackage)
     game.write_file("zoneApi.log", "Creating zone: ".. encodedPackage .. "\n", true)
@@ -1188,7 +1316,7 @@ function CreateZoneRestriction(zoneIndex, toZoneServerName, toZoneName)
         zone = fromZone
     }
     -- send to master
-    game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+    game.write_file(fileName, table_to_json(package) .. "\n", true, 0)
 end
 
 return guiApi

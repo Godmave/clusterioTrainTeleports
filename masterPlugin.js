@@ -120,7 +120,7 @@ class trainTeleporter{
 	async setZones(instanceZones) {
         let zones = await this.master.getZones();
         zones[this.instanceID] = instanceZones;
-        if (instanceZones && instanceZones["1"]) {
+        if (instanceZones && instanceZones.length > 0) {
             await this.master.propagateZones();
         }
     }
@@ -233,7 +233,7 @@ class masterPlugin {
             clearTimeout(this.propagateZonesTimeout);
         }
         this.propagateZonesTimeout = setTimeout(() => {
-//console.log("ZONES:", JSON.stringify(this.zonesDatabase));
+console.log("ZONES:", JSON.stringify(this.zonesDatabase));
             this.io.sockets.emit("zonesDatabase", this.zonesDatabase);
 
         }, 100);

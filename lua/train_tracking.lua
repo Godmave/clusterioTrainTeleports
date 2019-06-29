@@ -515,7 +515,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 train_schedule = serializedTrainSchedule
             }
 
-            game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+            game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 
             global.trainsToSendRemote[k] = nil
             table.insert(global.trainsToDestroy, v.train)
@@ -593,7 +593,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     v.targetStation = newStation
                     global.trainsToSpawn[k] = v
                 else
-                    game.print("No station with name "..v.targetStation.backer_name.." found, keeping this train in limbo (forever)")
+                    -- game.print("No station with name "..v.targetStation.backer_name.." found, keeping this train in limbo (forever)")
                     local fullName = v.targetStation.backer_name.." @ "..trainStopTrackingApi.lookupIdToServerName()
                     if not global.blockedStations[fullName] then
                         game.print("block station in redirect "..fullName)

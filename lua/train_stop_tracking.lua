@@ -16,13 +16,13 @@ local function undrawZoneBorders(zoneId)
     local surface = game.surfaces[zone.surface or 'nauvis']
 
     -- top
-    surface.destroy_decoratives{left_top = {zone.topleft[1], zone.topleft[2]}, right_bottom = {zone.bottomright[1], zone.topleft[2]}}
+    surface.destroy_decoratives{area={left_top = {zone.topleft[1], zone.topleft[2]}, right_bottom = {zone.bottomright[1], zone.topleft[2]}}}
     -- bottom
-    surface.destroy_decoratives{left_top = {zone.topleft[1], zone.bottomright[2]}, right_bottom = {zone.bottomright[1], zone.bottomright[2]}}
+    surface.destroy_decoratives{area={left_top = {zone.topleft[1], zone.bottomright[2]}, right_bottom = {zone.bottomright[1], zone.bottomright[2]}}}
     -- left
-    surface.destroy_decoratives{left_top = {zone.topleft[1], zone.topleft[2]}, right_bottom = {zone.topleft[1], zone.bottomright[2]}}
+    surface.destroy_decoratives{area={left_top = {zone.topleft[1], zone.topleft[2]}, right_bottom = {zone.topleft[1], zone.bottomright[2]}}}
     -- right
-    surface.destroy_decoratives{left_top = {zone.bottomright[1], zone.topleft[2]}, right_bottom = {zone.bottomright[1], zone.bottomright[2]}}
+    surface.destroy_decoratives{area={left_top = {zone.bottomright[1], zone.topleft[2]}, right_bottom = {zone.bottomright[1], zone.bottomright[2]}}}
 end
 
 local function drawZoneBorders(zoneId)
@@ -171,7 +171,7 @@ local function updateTrainstop(entity)
                 zones = registration.zones
             }
         }
-        game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+        game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 
         -- game.write_file(fileName, "event:trainstop_added|name:"..entity.backer_name.."|x:"..entity_position.x.."|y:"..entity_position.y.."|s:"..entity.surface.name.."\n", true, 0)
     elseif registration.name ~= entity.backer_name then
@@ -198,7 +198,7 @@ local function updateTrainstop(entity)
                 zones = registration.zones
             }
         }
-        game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+        game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 
         -- game.write_file(fileName, "event:trainstop_edited|name:"..entity.backer_name.."|oldName:"..registration.name.."|x:"..entity_position.x.."|y:"..entity_position.y.."|s:"..registration.surface.."\n", true, 0)
     end
@@ -233,6 +233,7 @@ end
 
 local function rebuildRemoteZonestops()
     global.remoteZoneStops = {}
+    log(serpent.block(global.remoteStopZones))
     for _, stops in pairs(global.remoteStopZones) do
         local instanceId = _
         global.remoteZoneStops[instanceId] = {}
@@ -269,7 +270,7 @@ local function initAllTrainstopsAndZones()
         end
     end
 
-    game.write_file(fileName, json:encode(package) .. "\n", true, 0)
+    game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 end
 
 local function lookupNameToId(serverName)
