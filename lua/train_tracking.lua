@@ -325,6 +325,7 @@ local function deserialize_train(station, data)
 
         end
     end, function (error_message)
+        log(error_message)
         for _, entity in ipairs(created_entities) do
             entity.destroy()
         end
@@ -575,7 +576,8 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             -- elseif targetState == CAN_SPAWN_RESULT.no_signals then
             --    alert_all_players(v.targetStation,"Station needs signals")
             elseif targetState == CAN_SPAWN_RESULT.no_station then
-                game.print("Station "..v.targetStation.backer_name.." got removed after being set as teleport spawn target, trying to redirect")
+                -- at this point v.targetStation is invalid, so we have to use the schedule
+                game.print("Station "..v.schedule.records[v.schedule.current].station.." got removed after being set as teleport spawn target, trying to redirect")
                 reroute = true
             end
 
