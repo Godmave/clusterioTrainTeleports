@@ -230,8 +230,7 @@ local function deserialize_inventory(inventory, data)
     end
 
     for idx, name in pairs(item_names) do
-        idx = tonumber(idx)
-        local slot = inventory[idx]
+        local slot = inventory[tonumber(idx)]
         slot.set_stack({
             name = name,
             count = item_counts[idx]
