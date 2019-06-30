@@ -233,7 +233,7 @@ end
 
 local function rebuildRemoteZonestops()
     global.remoteZoneStops = {}
-    log(serpent.block(global.remoteStopZones))
+    -- log(serpent.block(global.remoteStopZones))
     for _, stops in pairs(global.remoteStopZones) do
         local instanceId = _
         global.remoteZoneStops[instanceId] = {}
