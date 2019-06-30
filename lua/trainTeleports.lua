@@ -96,7 +96,6 @@ remote.add_interface("trainTeleports", {
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
-            log(serpent.block(global.zones))
         end
 
     end,

@@ -212,7 +212,6 @@ local function collectReachables(serverName, stopName, onlyRestricted)
             end
         end
     end
-log(serpent.block(reachableStops))
     return reachableStops
 end
 
@@ -1098,7 +1097,7 @@ script.on_event(defines.events.on_gui_click, function (event)
                 local override_wait_condition
                 if schedule.records and state.lastSelectedScheduleStop and schedule.records[state.lastSelectedScheduleStop] then
                     local lastStop = schedule.records[state.lastSelectedScheduleStop].station
-                    log("going from: " .. lastStop .. " to: " .. station)
+                    -- log("going from: " .. lastStop .. " to: " .. station)
 
                     local lastStopServerName
                     if not string.find(lastStop,"@", 1, true) then
