@@ -230,6 +230,7 @@ local function deserialize_inventory(inventory, data)
     end
 
     for idx, name in pairs(item_names) do
+        idx = tonumber(idx)
         local slot = inventory[idx]
         slot.set_stack({
             name = name,
