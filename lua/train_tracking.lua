@@ -636,13 +636,23 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             end
 
             if reroute then
-                local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train)
+                local stationName
+                local newStation = nil
+
+                if v.targetStation.valid then
+                    stationName = v.targetStation.backer_name
+                else
+                    stationName = v.schedule.records[v.schedule.current].station
+                end
+
+                newStation = trainStopTrackingApi.find_station(stationName, #v.train)
                 if not newStation.valid then
                     game.print("Station "..v.targetStation.backer_name.." does not have the right length. Keeping the train in limbo")
-                    newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, 1)
+                    newStation = trainStopTrackingApi.find_station(stationName, 1)
                 end
-                if newStation.valid then
-                    if global.stationQueue[v.targetStation.unit_number] > 0 then
+
+                if newStation and newStation.valid then
+                    if v.targetStation.valid and global.stationQueue[v.targetStation.unit_number] > 0 then
                         global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
                     end
 
@@ -650,7 +660,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     global.trainsToSpawn[k] = v
                 else
                     -- game.print("No station with name "..v.targetStation.backer_name.." found, keeping this train in limbo (forever)")
-                    local fullName = v.targetStation.backer_name.." @ "..trainStopTrackingApi.lookupIdToServerName()
+                    local fullName = stationName.." @ "..trainStopTrackingApi.lookupIdToServerName()
                     if not global.blockedStations[fullName] then
                         game.print("block station in redirect "..fullName)
                         global.blockedStations[fullName] = true

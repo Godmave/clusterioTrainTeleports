@@ -65,7 +65,7 @@ module.exports = class remoteCommands {
 		});
 
         this.socket.on("zonesDatabase", async zonesDB => {
-            console.log("got zones from master");
+             console.log("got zones from master");
             this.zonesDB = zonesDB;
             await this.applyZonesDB();
         });
@@ -78,17 +78,17 @@ module.exports = class remoteCommands {
         this.socket.on("trainstop_blocked", async data => {
             console.log("remote trainstop_blocked: "+data.name);
             let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = true")';
-            console.log(command);
+            // console.log(command);
             this.messageInterface(command);
         });
         this.socket.on("trainstop_unblocked", async data => {
             console.log("remote trainstop_unblocked: "+data.name);
             let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = nil")';
-            console.log(command);
+            // console.log(command);
             this.messageInterface(command);
         });
         this.socket.on("trainStopRenameSchedules", async data => {
-            console.log("rename stop in schedules: "+data.oldName+" to "+data.name+" for instance "+data.instanceID);
+            // console.log("rename stop in schedules: "+data.oldName+" to "+data.name+" for instance "+data.instanceID);
             this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "updateStopInSchedules", "' +data.instanceID+ '", "'+this.doubleEscape(data.oldName)+'", "'+this.doubleEscape(data.name)+'")');
         });
 
@@ -141,7 +141,7 @@ module.exports = class remoteCommands {
         command += 'trainStopTrackingApi.rebuildRemoteZonestops()';
 
         command += '")';
-        console.log(command);
+        //console.log(command);
         this.messageInterface("/silent-command "+command);
     }
 	async applyZonesDB(){
