@@ -625,7 +625,8 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             if v.targetStation.valid then
                 stationName = v.targetStation.backer_name
             else
-                stationName = v.schedule.records[v.schedule.current + 1 % #v.schedule.records + 1].station
+                local next_stop = (v.schedule.current + 1) % #v.schedule.records + 1
+                stationName = v.schedule.records[next_stop].station
             end
 
             if targetState == CAN_SPAWN_RESULT.blocked then
