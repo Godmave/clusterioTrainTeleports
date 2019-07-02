@@ -633,7 +633,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 if next_stop > number_of_stops then
                     next_stop = 1
                 end
-                stationName = train_schedule.records[next_stop].station
+                stationName = train_schedule.records[next_stop].station:match("^(<CT?[0-9%+]*> .*) @")
             end
 
             if targetState == CAN_SPAWN_RESULT.blocked then
