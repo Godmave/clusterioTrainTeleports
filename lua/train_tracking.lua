@@ -647,7 +647,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
 
                 newStation = trainStopTrackingApi.find_station(stationName, #v.train)
                 if not newStation.valid then
-                    game.print("Station "..v.targetStation.backer_name.." does not have the right length. Keeping the train in limbo")
+                    game.print("Station "..stationName.." does not have the right length. Keeping the train in limbo")
                     newStation = trainStopTrackingApi.find_station(stationName, 1)
                 end
 
