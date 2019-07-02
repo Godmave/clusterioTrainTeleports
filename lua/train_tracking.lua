@@ -1,3 +1,8 @@
+local sqrt = math.sqrt
+local abs = math.abs
+local pow = math.pow
+
+
 local function unalert_all_players(entity)
     if entity.valid then
         for k, p in pairs(game.players) do
@@ -131,6 +136,15 @@ local function serialize_inventory(inventory)
     }
 end
 
+local function entity_distance(a, b)
+    if a.position.x == b.position.x then
+        return abs(a.position.y - b.position.y)
+    elseif a.position.y == b.position.y then
+        return abs(a.position.x - b.position.x)
+    end
+    return sqrt(pow(abs(a.position.x - b.position.x), 2) + pow(abs(a.position.y - b.position.y),2))
+end
+
 local function serialize_train(train)
     local station = train.station
     if not station then
@@ -140,28 +154,34 @@ local function serialize_train(train)
     end
 
     local data = {}
-    for _, carriage in pairs(train.carriages) do
-        local carriage_index = _
+    local compareOrientation = station.orientation
+    local is_flipped = 0
 
-        --[[
-        local distance = math.abs(carriage.position.x - station.position.x) + math.abs(carriage.position.y - station.position.y)
-        local index = (distance + 2) / 7
-        carriage_index = math.floor(index + 0.5)
+    local dataStartIndex
+    local dataEndIndex
+    local dataIncrement
+    if entity_distance(train.carriages[1], station) < 5 then
+        dataStartIndex = 1
+        dataEndIndex = #train.carriages
+        dataIncrement = 1
+    else
+        dataStartIndex = #train.carriages
+        dataEndIndex = 1
+        dataIncrement = -1
+    end
 
-        if carriage_index >= 1 and carriage_index <= 50 and math.abs(index - carriage_index) <= 0.01 then
-        else
-            return nil
-        end
-        ]]--
+    local carriage_index = 1
+    for _ = dataStartIndex, dataEndIndex, dataIncrement do
+        local carriage = train.carriages[_]
 
-        local is_flipped = math.floor(carriage.orientation * 4 + 0.5)
-        is_flipped = bit32.bxor(bit32.rshift(station.direction, 2), bit32.rshift(is_flipped, 1))
+        is_flipped = (math.abs(compareOrientation - carriage.orientation) > 0.25) and bit32.bxor(is_flipped, 1) or is_flipped
+        compareOrientation = carriage.orientation
 
         local inventories = {}
         for _, inventory_type in pairs(inventory_types) do
             local inventory = carriage.get_inventory(inventory_type)
             if inventory then
-                    inventories[inventory_type] = serialize_inventory(inventory)
+                inventories[inventory_type] = serialize_inventory(inventory)
             end
         end
 
@@ -187,6 +207,7 @@ local function serialize_train(train)
             currently_burning = carriage.burner and carriage.burner.currently_burning and carriage.burner.currently_burning.name,
             remaining_burning_fuel = carriage.burner and carriage.burner.remaining_burning_fuel
         }
+        carriage_index = carriage_index + 1
     end
 
     return data
@@ -263,7 +284,7 @@ local function deserialize_inventory(inventory, data)
     end
 end
 
-local function deserialize_train(station, data)
+local function deserialize_train(station, data, oppositeStations)
     local rotation
     if bit32.band(station.direction, 2) == 0 then
         rotation = { 1, 0, 0, 1 }
@@ -277,16 +298,49 @@ local function deserialize_train(station, data)
     local created_entities = {}
     xpcall(function ()
         local sp = station.position
-        for idx, carriage in ipairs(data) do
-            local ox, oy = -2, 7 * idx - 4
+
+        local dataStartIndex, dataEndIndex, dataIncrement
+        if oppositeStations then
+            dataStartIndex = #data
+            dataEndIndex = 1
+            dataIncrement = -1
+        else
+            dataStartIndex = 1
+            dataEndIndex = #data
+            dataIncrement = 1
+        end
+
+        local buildIdx = 1
+        for idx = dataStartIndex, dataEndIndex, dataIncrement do
+            local carriage = data[idx]
+
+            local ox, oy = -2, 7 * buildIdx - 4
             ox, oy = rotation[1] * ox + rotation[2] * oy, rotation[3] * ox + rotation[4] * oy
 
+            local flipped = carriage.is_flipped
+            if oppositeStations then
+                flipped = 1 - flipped
+            end
+
+            local spawnDirection = (station.direction + flipped * 4) % 8
             local entity = game.surfaces[1].create_entity({
                 name = carriage.name,
                 force = game.forces.player,
                 position = {x=sp.x + ox, y=sp.y + oy},
-                direction = (station.direction + carriage.is_flipped * 4) % 8
+                direction = spawnDirection
             })
+
+            if entity and (spawnDirection*0.125) ~= entity.orientation then
+                spawnDirection = (station.direction + (1-flipped) * 4) % 8
+                entity.destroy()
+                entity = game.surfaces[1].create_entity({
+                    name = carriage.name,
+                    force = game.forces.player,
+                    position = {x=sp.x + ox, y=sp.y + oy},
+                    direction = spawnDirection
+                })
+            end
+
 
             if entity and entity.valid then
                 created_entities[#created_entities + 1] = entity
@@ -321,8 +375,7 @@ local function deserialize_train(station, data)
                 end
             end
 
-
-
+            buildIdx = buildIdx + 1
         end
     end, function (error_message)
         log(error_message)
@@ -341,7 +394,7 @@ local function escape_pattern(text)
     return text:gsub("([^%w])", "%%%1")
 end
 
-local function deserialize_train_schedule(train, schedule)
+local function deserialize_train_schedule(train, schedule, oppositeStations)
     if schedule == nil then
         return
     end
@@ -357,7 +410,7 @@ local function deserialize_train_schedule(train, schedule)
 
     end
 
-    schedule.current = schedule.current % #schedule.records + 1
+    schedule.current = (schedule.current + (oppositeStations and 1 or 0)) % #schedule.records + 1
     train.schedule = schedule
     train.manual_mode = false
 end
@@ -470,7 +523,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     else
                         global.stationQueue[targetStation.backer_name] = global.stationQueue[targetStation.backer_name] + 1
                     end
-                    table.insert(global.trainsToSpawn, {targetStation = targetStation, train = trainData, schedule = scheduleData })
+                    table.insert(global.trainsToSpawn, {targetStation = targetStation, train = trainData, schedule = scheduleData, sendingStationDirection=train.station.direction })
                     table.insert(global.trainsToDestroy, train)
                     global.trainsToSend[k] = nil
 
@@ -510,6 +563,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             local package = {
                 event = "teleportTrain",
                 localTrainid = v.train.id,
+                sendingStationDirection = v.train.station.direction,
                 destinationInstanceId = v.instanceId,
                 destinationStationName = v.stationName,
                 train = serializedTrain,
@@ -532,10 +586,12 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
         local targetState = trainStopTrackingApi.can_spawn_train(v.targetStation, #v.train)
 
         -- if there are no signals spawn anyway, maybe it is a lone track without need for signals
-        if targetState == CAN_SPAWN_RESULT.ok or targetState == CAN_SPAWN_RESULT.no_signals then
-            local created_train = deserialize_train(v.targetStation, v.train)
+        if targetState == CAN_SPAWN_RESULT.ok then
+            local oppositeStations = math.abs(v.targetStation.direction - v.sendingStationDirection) == 4
+
+            local created_train = deserialize_train(v.targetStation, v.train, oppositeStations)
             if created_train then
-                deserialize_train_schedule(created_train, v.schedule)
+                deserialize_train_schedule(created_train, v.schedule, oppositeStations)
                 global.trainsToSpawn[k] = nil
                 if global.stationQueue[v.targetStation.backer_name] > 0 then
                     global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
@@ -573,8 +629,6 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             elseif targetState == CAN_SPAWN_RESULT.not_enough_track then
                 alert_all_players(v.targetStation,"Station has not enough room, trying to redirect")
                 reroute = true
-            -- elseif targetState == CAN_SPAWN_RESULT.no_signals then
-            --    alert_all_players(v.targetStation,"Station needs signals")
             elseif targetState == CAN_SPAWN_RESULT.no_station then
                 -- at this point v.targetStation is invalid, so we have to use the schedule
                 game.print("Station "..v.schedule.records[v.schedule.current].station.." got removed after being set as teleport spawn target, trying to redirect")

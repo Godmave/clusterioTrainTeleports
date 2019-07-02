@@ -1,6 +1,5 @@
 CAN_SPAWN_RESULT = {
     ok = 0,
-    no_signals = 1,
     blocked = 2,
     no_adjacent_rail = -1,
     not_enough_track = -2,
@@ -312,7 +311,11 @@ local function can_spawn_train(station, carriage_count)
         return CAN_SPAWN_RESULT.no_station
     end
 
-    local surface = station.surface
+    local cb = station.get_control_behavior()
+    if cb and cb ~= nil and cb.connect_to_logistic_network and cb.disabled then
+        return CAN_SPAWN_RESULT.no_station
+    end
+
     local expected_direction, expected_rail_direction
     local rotation
 
@@ -328,14 +331,13 @@ local function can_spawn_train(station, carriage_count)
     end
     expected_rail_direction = 1 - bit32.rshift(station.direction, 2)
 
-    local station_position = station.position
-
-    local rail = surface.find_entity('straight-rail', {
-        station_position.x - 2 * rotation[1],
-        station_position.y - 2 * rotation[3]
-    })
-    if not rail or rail.direction ~= expected_direction then
+    local rail = station.connected_rail
+    if not rail then
         return CAN_SPAWN_RESULT.no_adjacent_rail
+    end
+
+    if rail.trains_in_block > 0 then
+        return CAN_SPAWN_RESULT.blocked
     end
 
     --[[ math.ceil((count * 7 - 1) / 2) ]]
@@ -354,47 +356,6 @@ local function can_spawn_train(station, carriage_count)
         end
     end
 
-    local far_x, far_y = -1, math.max(112, rail_sections_count * 2 + 1)
-    local near_x, near_y = -1, 1
-    local area = {
-        { near_x * rotation[1] + near_y * rotation[2], near_x * rotation[3] + near_y * rotation[4] },
-        { far_x * rotation[1] + far_y * rotation[2], far_x * rotation[3] + far_y * rotation[4] },
-    }
-    if area[1][1] > area[2][1] then area[1][1], area[2][1] = area[2][1], area[1][1] end
-    if area[1][2] > area[2][2] then area[1][2], area[2][2] = area[2][2], area[1][2] end
-    area[1][1], area[1][2] = area[1][1] + station_position.x-1, area[1][2] + station_position.y-1
-    area[2][1], area[2][2] = area[2][1] + station_position.x + 1, area[2][2] + station_position.y + 1
-
-    local expected_signal_direction = bit32.bxor(station.direction, 4)
-    local signals = surface.find_entities_filtered({
-        type = 'rail-signal',
-        area = area
-    })
-
-    local any_signal = false
-    for _, signal in ipairs(signals) do
-        if signal.direction == expected_signal_direction then
-            any_signal = true
-            if signal.signal_state ~= defines.signal_state.open then
-                return CAN_SPAWN_RESULT.blocked
-            end
-        end
-    end
-    local chain_signals = surface.find_entities_filtered({
-        type = 'rail-chain-signal',
-        area = area
-    })
-    for _, chain_signal in ipairs(chain_signals) do
-        if chain_signal.direction == expected_signal_direction then
-            any_signal = true
-            if chain_signal.chain_signal_state ~= defines.chain_signal_state.all_open then
-                return CAN_SPAWN_RESULT.blocked
-            end
-        end
-    end
-    if not any_signal then
-        return CAN_SPAWN_RESULT.no_signals
-    end
 
     return CAN_SPAWN_RESULT.ok
 end
@@ -450,7 +411,7 @@ local function find_station(stationName, trainSize, ignoreThisStationEntity)
 
                     if global.stationQueue[laststation.unit_number] == 0 then
                         local spawnStatus = can_spawn_train(laststation, trainSize)
-                        if spawnStatus == CAN_SPAWN_RESULT.ok or spawnStatus == CAN_SPAWN_RESULT.no_signals then
+                        if spawnStatus == CAN_SPAWN_RESULT.ok then
                             bestStation = laststation
                             break
                         elseif nextBestStation == nil and spawnStatus > CAN_SPAWN_RESULT.ok then
