@@ -620,6 +620,14 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             end
         else
             local reroute = false
+            local stationName
+
+            if v.targetStation.valid then
+                stationName = v.targetStation.backer_name
+            else
+                stationName = v.schedule.records[v.schedule.current + 1 % #v.schedule.records + 1].station
+            end
+
             if targetState == CAN_SPAWN_RESULT.blocked then
                 alert_all_players(v.targetStation,"Station is blocked, trying to redirect")
                 reroute = true
@@ -631,20 +639,12 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 reroute = true
             elseif targetState == CAN_SPAWN_RESULT.no_station then
                 -- at this point v.targetStation is invalid, so we have to use the schedule
-                game.print("Station "..v.schedule.records[v.schedule.current].station.." got removed after being set as teleport spawn target, trying to redirect")
+                game.print("Station "..stationName.." got removed after being set as teleport spawn target, trying to redirect")
                 reroute = true
             end
 
             if reroute then
-                local stationName
                 local newStation = nil
-
-                if v.targetStation.valid then
-                    stationName = v.targetStation.backer_name
-                else
-                    stationName = v.schedule.records[v.schedule.current].station
-                end
-
                 newStation = trainStopTrackingApi.find_station(stationName, #v.train)
                 if not newStation.valid then
                     game.print("Station "..stationName.." does not have the right length. Keeping the train in limbo")
