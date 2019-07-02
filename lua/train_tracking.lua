@@ -587,7 +587,11 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
 
         -- if there are no signals spawn anyway, maybe it is a lone track without need for signals
         if targetState == CAN_SPAWN_RESULT.ok then
-            local oppositeStations = math.abs(v.targetStation.direction - v.sendingStationDirection) == 4
+            local oppositeStations
+            if not v.sendingStationDirection then
+                v.sendingStationDirection = 0 -- just catch in transit trains of previous versions
+            end
+            oppositeStations = math.abs(v.targetStation.direction - v.sendingStationDirection) == 4
 
             local created_train = deserialize_train(v.targetStation, v.train, oppositeStations)
             if created_train then
