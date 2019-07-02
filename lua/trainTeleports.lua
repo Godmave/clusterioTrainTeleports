@@ -127,10 +127,10 @@ remote.add_interface("trainTeleports", {
         end
     end,
     runCode = function(code)
-        log("start running code:")
-        log(code);
+        --log("start running code:")
+        --log(code);
         load(code, "trainTeleports code injection failed!", "t", _ENV)()
-        log("done running code")
+        --log("done running code")
 
     end
 })
