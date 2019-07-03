@@ -275,7 +275,8 @@ local function deserialize_inventory(inventory, data)
         end
     end
     for idx, str in pairs(item_exports) do
-        inventory[idx].import_stack(str)
+        local slot = inventory[tonumber(idx)]
+        inventory[slot].import_stack(str)
     end
     if data.filters then
         for idx, filter in pairs(data.filters) do
