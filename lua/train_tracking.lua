@@ -602,8 +602,8 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             -- todo:
             -- maybe buffer train in serialized form until we get the safe arrival message back
             -- this way we are able to resend it, or even recall it
+            ::nextTrainToSendRemote::
         end
-        ::nextTrainToSendRemote::
     end
 
     for k, v in pairs(global.trainsToSpawn) do
