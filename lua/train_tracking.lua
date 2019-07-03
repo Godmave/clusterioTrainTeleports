@@ -1,3 +1,9 @@
+--[[
+todo:
+- cleanup: trainLastSpawnTick, stationQueue,
+- feature: teleport filled armor and stuff
+]]
+
 local sqrt = math.sqrt
 local abs = math.abs
 local pow = math.pow
@@ -434,6 +440,8 @@ script.on_event(defines.events.on_tick, function(event)
             end
         end
 
+        global.trainsToDestroy = {}
+
         script.raise_event(defines.events.script_raised_destroy, {})
 
     end
@@ -484,31 +492,38 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                         -- find out the server and zone(s) the target stop is in, and then check if this stop is allowed to teleport there
 
                         local zoneMatch = false
-                        local targetStopName, targetServerName = trainStopTrackingApi.resolveStop(train_schedule.records[next_stop].station)
-                        local targetServerId = trainStopTrackingApi.lookupNameToId(targetServerName)
-                        local targetServerZones = global.remoteStopZones[tostring(targetServerId)]
-                        if targetServerZones ~= nil and table_size(targetServerZones) > 0 then
-                            local targetZones = global.remoteStopZones[tostring(targetServerId)][targetStopName]
+                        local targetStopName, targetServerName
+                        xpcall(function ()
+                            targetStopName, targetServerName = trainStopTrackingApi.resolveStop(train_schedule.records[next_stop].station)
+                            local targetServerId = trainStopTrackingApi.lookupNameToId(targetServerName)
+                            local targetServerZones = global.remoteStopZones[tostring(targetServerId)]
+                            if targetServerZones ~= nil and table_size(targetServerZones) > 0 then
+                                local targetZones = global.remoteStopZones[tostring(targetServerId)][targetStopName]
 
-                            for _, restriction in pairs(restrictions) do
-                                if restriction.server == targetServerName then
-                                    for __, zoneName in pairs(targetZones) do
-                                        if zoneName == restriction.zone then
-                                            zoneMatch = true
+                                for _, restriction in pairs(restrictions) do
+                                    if restriction.server == targetServerName then
+                                        for __, zoneName in pairs(targetZones) do
+                                            if zoneName == restriction.zone then
+                                                zoneMatch = true
+                                                break
+                                            end
+                                        end
+                                        if zoneMatch then
                                             break
                                         end
                                     end
-                                    if zoneMatch then
-                                        break
-                                    end
                                 end
                             end
-                        end
+                        end, function (error_message)
+                            log(error_message)
+                            alert_all_players(train.station,"Could not resolve stop " .. train_schedule.records[next_stop].station .. ". Maybe it got removed")
+                            goto nextTrainToSend
+                        end)
 
                         if not zoneMatch then
                             -- global.trainsToSend[k] = nil
                             alert_all_players(train.station,"Tried sending train to remote station "..targetStopName.." at "..targetServerName .." which it is not allowed to go to")
-                            break
+                            goto nextTrainToSend
                         end
                     end
                 end
@@ -548,6 +563,8 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
         else
             global.trainsToSend[k] = nil
         end
+
+        ::nextTrainToSend::
     end
 
     for k, v in pairs(global.trainsToSendRemote) do
@@ -559,7 +576,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 game.print("ERRRRRORRRRR")
                 log(serpent.block(v.train))
                 log(serpent.block(serializedTrain))
-                break;
+                goto nextTrainToSendRemote
             end
 
             local package = {
@@ -581,6 +598,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             -- maybe buffer train in serialized form until we get the safe arrival message back
             -- this way we are able to resend it, or even recall it
         end
+        ::nextTrainToSend::
     end
 
     for k, v in pairs(global.trainsToSpawn) do
