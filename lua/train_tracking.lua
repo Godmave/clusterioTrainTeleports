@@ -493,7 +493,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
 
                         local zoneMatch = false
                         local targetStopName, targetServerName
-                        xpcall(function ()
+                        local success = xpcall(function ()
                             targetStopName, targetServerName = trainStopTrackingApi.resolveStop(train_schedule.records[next_stop].station)
                             local targetServerId = trainStopTrackingApi.lookupNameToId(targetServerName)
                             local targetServerZones = global.remoteStopZones[tostring(targetServerId)]
@@ -514,11 +514,16 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                                     end
                                 end
                             end
+                            return true
                         end, function (error_message)
                             log(error_message)
                             alert_all_players(train.station,"Could not resolve stop " .. train_schedule.records[next_stop].station .. ". Maybe it got removed")
-                            goto nextTrainToSend
+                            return false
                         end)
+
+                        if not success then
+                            goto nextTrainToSend
+                        end
 
                         if not zoneMatch then
                             -- global.trainsToSend[k] = nil
