@@ -280,7 +280,8 @@ local function deserialize_inventory(inventory, data)
     end
     if data.filters then
         for idx, filter in pairs(data.filters) do
-            inventory.set_filter(idx, filter)
+            local slot = inventory[tonumber(idx)]
+            inventory.set_filter(slot, filter)
         end
     end
 end
