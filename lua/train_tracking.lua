@@ -276,6 +276,9 @@ local function deserialize_inventory(inventory, data)
     end
     for idx, str in pairs(item_exports) do
         local slot = inventory[tonumber(idx)]
+        log(serpent.block(idx))
+        log(serpent.block(slot))
+        log(serpent.block(str))
         inventory[slot].import_stack(str)
     end
     if data.filters then
