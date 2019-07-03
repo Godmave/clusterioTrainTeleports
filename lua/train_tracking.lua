@@ -560,11 +560,11 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     alert_all_players(train.station, "Ran out of available stations with the name: "..train_schedule.records[next_stop].station..". Build more or suffer ... from limited throughput")
                 end
             end
+
+            ::nextTrainToSend::
         else
             global.trainsToSend[k] = nil
         end
-
-        ::nextTrainToSend::
     end
 
     for k, v in pairs(global.trainsToSendRemote) do
