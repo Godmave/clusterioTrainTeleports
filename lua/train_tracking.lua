@@ -286,7 +286,7 @@ local function deserialize_inventory(inventory, data)
     end
     if data.filters then
         for idx, filter in pairs(data.filters) do
-            local slot = inventory[tonumber(idx)]
+            local slot = tonumber(idx)
             inventory.set_filter(slot, filter)
         end
     end
@@ -500,16 +500,18 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                             if targetServerZones ~= nil and table_size(targetServerZones) > 0 then
                                 local targetZones = global.remoteStopZones[tostring(targetServerId)][targetStopName]
 
-                                for _, restriction in pairs(restrictions) do
-                                    if restriction.server == targetServerName then
-                                        for __, zoneName in pairs(targetZones) do
-                                            if zoneName == restriction.zone then
-                                                zoneMatch = true
+                                if targetZones ~= nil then
+                                    for _, restriction in pairs(restrictions) do
+                                        if restriction.server == targetServerName then
+                                            for __, zoneName in pairs(targetZones) do
+                                                if zoneName == restriction.zone then
+                                                    zoneMatch = true
+                                                    break
+                                                end
+                                            end
+                                            if zoneMatch then
                                                 break
                                             end
-                                        end
-                                        if zoneMatch then
-                                            break
                                         end
                                     end
                                 end

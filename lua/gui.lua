@@ -150,8 +150,10 @@ local function collectReachables(serverName, stopName, onlyRestricted)
                                 reachableStops[serverName] = reachableStops[serverName] or {}
                                 reachableStops[serverName][zone.name] = {}
                                 local stops = global.remoteZoneStops[tostring(serverId)][zone.name]
-                                for stopId, stopName in pairs(stops) do
-                                    reachableStops[serverName][zone.name][stopName] = true
+                                if stops ~= nil then
+                                    for stopId, stopName in pairs(stops) do
+                                        reachableStops[serverName][zone.name][stopName] = true
+                                    end
                                 end
 
                             elseif not onlyRestricted then
