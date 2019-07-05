@@ -38,7 +38,7 @@ do
 end
 
 local function serialize_equipment_grid(grid)
-    local names, xs, ys = {}, {}, {}
+    local names, energy, shield, xs, ys = {}, {}, {}, {}, {}
 
     local position = {0,0}
     local width, height = grid.width, grid.height
@@ -59,6 +59,8 @@ local function serialize_equipment_grid(grid)
 
                     local idx = #names + 1
                     names[idx] = equipment.name
+                    energy[idx] = equipment.energy
+                    shield[idx] = equipment.shield
                     xs[idx] = x
                     ys[idx] = y
                 end
@@ -67,6 +69,8 @@ local function serialize_equipment_grid(grid)
     end
     return {
         names = names,
+        energy = energy,
+        shield = shield,
         xs = xs,
         ys = ys,
     }
@@ -237,12 +241,21 @@ end
 
 local function deserialize_grid(grid, data)
     grid.clear()
-    local names, xs, ys = data.names, data.xs, data.ys
+    local names, energy, shield, xs, ys = data.names, data.energy, data.shield, data.xs, data.ys
     for i = 1, #names do
-        grid.put({
+        local equipment = grid.put({
             name = names[i],
             position = {xs[i], ys[i]}
         })
+
+        if equipment then
+            if shield[i] > 0 then
+                equipment.shield = shield[i]
+            end
+            if energy[i] > 0 then
+                equipment.energy = energy[i]
+            end
+        end
     end
 end
 
