@@ -307,7 +307,7 @@ end
 
 
 local function can_spawn_train(station, carriage_count)
-    if not station.valid then
+    if not (station and station.valid) then
         return CAN_SPAWN_RESULT.no_station
     end
 

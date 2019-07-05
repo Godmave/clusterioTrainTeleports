@@ -1,7 +1,7 @@
 --[[
 todo:
-- cleanup: trainLastSpawnTick, stationQueue,
-- feature: teleport filled armor and stuff
+- cleanup: trainLastSpawnTick, stationQueue
+- stops of other zones on remote servers are not visible if they are not teleport reachable by the "current" stop zone on that server
 ]]
 
 local sqrt = math.sqrt
@@ -653,7 +653,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             local reroute = false
             local stationName
 
-            if v.targetStation.valid then
+            if v.targetStation and v.targetStation.valid then
                 stationName = v.targetStation.backer_name
             else
                 local train_schedule = v.schedule

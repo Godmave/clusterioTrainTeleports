@@ -79,20 +79,23 @@ remote.add_interface("trainTeleports", {
             local train = data.train
             local targetStation = trainStopTrackingApi.find_station(data.destinationStationName, #train)
             local trainSchedule = data.train_schedule
+            local sendingStationDirection = data.sendingStationDirection
 
             if not targetStation.valid then
                 targetStation = trainStopTrackingApi.find_station(data.destinationStationName, 1)
             end
 
             if targetStation.valid then
-                table.insert(global.trainsToSpawn, {targetStation = targetStation, train = train, schedule = trainSchedule })
+                table.insert(global.trainsToSpawn, {targetStation = targetStation, train = train, schedule = trainSchedule, sendingStationDirection = sendingStationDirection })
                 if global.stationQueue[targetStation.backer_name] == nil then
                     global.stationQueue[targetStation.backer_name] = 1
                 else
                     global.stationQueue[targetStation.backer_name] = global.stationQueue[targetStation.backer_name] + 1
                 end
             else
-                log("can not spawn train, unknown station: "..data.destinationStationName)
+                log("can not spawn train, unavailable station: "..data.destinationStationName .. ". putting it in the queue, good luck!")
+                game.print("can not spawn train, unavailable station: "..data.destinationStationName .. ". putting it in the queue, good luck!")
+                table.insert(global.trainsToSpawn, {targetStation = nil, train = train, schedule = trainSchedule, sendingStationDirection = sendingStationDirection })
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
