@@ -207,10 +207,13 @@ local function collectReachables(serverName, stopName, onlyRestricted)
     else
         -- most likely when no stop is added to the schedule yet, add all stops from this server
         reachableStops[serverName] = {}
-        for zoneName, stops in pairs(global.remoteZoneStops[tostring(serverId)]) do
-            reachableStops[serverName][zoneName] = {}
-            for stopId, stopName in pairs(stops) do
-                reachableStops[serverName][zoneName][stopName] = true
+        local zoneStops = global.remoteZoneStops[tostring(serverId)]
+        if zoneStops ~= nil then
+            for zoneName, stops in pairs(global.remoteZoneStops[tostring(serverId)]) do
+                reachableStops[serverName][zoneName] = {}
+                for stopId, stopName in pairs(stops) do
+                    reachableStops[serverName][zoneName][stopName] = true
+                end
             end
         end
     end
