@@ -1,6 +1,5 @@
 --[[
 todo:
-- cleanup: trainLastSpawnTick, stationQueue
 - stops of other zones on remote servers are not visible if they are not teleport reachable by the "current" stop zone on that server
 ]]
 
