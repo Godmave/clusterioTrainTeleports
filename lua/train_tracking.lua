@@ -587,6 +587,14 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
         end
     end
 
+    local cleanTrainLastSpawnTick = {}
+    for k, v in pairs(global.trainLastSpawnTick) do
+        if (event.tick - v) < TELEPORT_COOLDOWN_TICKS then
+            cleanTrainLastSpawnTick[k] = v
+        end
+    end
+    global.trainLastSpawnTick = cleanTrainLastSpawnTick
+
     for k, v in pairs(global.trainsToSendRemote) do
         if v.train.valid and not v.train.manual_mode then
             local serializedTrain = serialize_train(v.train)
@@ -723,6 +731,14 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
         end
     end
 
+
+    local cleanStationQueue = {}
+    for k, v in pairs(global.stationQueue) do
+        if v > 0 then
+            cleanStationQueue[k] = v
+        end
+    end
+    global.stationQueue = cleanStationQueue
 end)
 
 script.on_event(defines.events.on_train_changed_state, function (event)
