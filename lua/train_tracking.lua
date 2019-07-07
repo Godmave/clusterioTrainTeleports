@@ -646,12 +646,14 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             if created_train then
                 deserialize_train_schedule(created_train, v.schedule, oppositeStations)
                 global.trainsToSpawn[k] = nil
-                if global.stationQueue[v.targetStation.backer_name] > 0 then
-                    global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
-                end
-                if global.stationQueue[v.targetStation.unit_number] > 0 then
-                    global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
-                    global.trainLastSpawnTick[created_train.id] = event.tick;
+                if global.stationQueue then
+                    if global.stationQueue[v.targetStation.backer_name] and global.stationQueue[v.targetStation.backer_name] > 0 then
+                        global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
+                    end
+                    if global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
+                        global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                        global.trainLastSpawnTick[created_train.id] = event.tick;
+                    end
                 end
 
                 -- after spawning a train at the station unblock it again if it was blocked
@@ -664,7 +666,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 alert_all_players(v.targetStation,"Could not spawn train, player standing on the rails? Trying to redirect")
                 local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train)
                 if newStation.valid then
-                    if global.stationQueue[v.targetStation.unit_number] > 0 then
+                    if global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
                         global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
                     end
                     v.targetStation = newStation
@@ -713,7 +715,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 end
 
                 if newStation and newStation.valid then
-                    if v.targetStation and v.targetStation.valid and global.stationQueue[v.targetStation.unit_number] > 0 then
+                    if v.targetStation and v.targetStation.valid and global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
                         global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
                     end
 
