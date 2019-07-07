@@ -346,6 +346,7 @@ local function deserialize_train(station, data, oppositeStations)
             local entity = game.surfaces[1].create_entity({
                 name = carriage.name,
                 force = game.forces.player,
+                snap_to_train_stop = false,
                 position = {x=sp.x + ox, y=sp.y + oy},
                 direction = spawnDirection
             })
@@ -356,6 +357,7 @@ local function deserialize_train(station, data, oppositeStations)
                 entity = game.surfaces[1].create_entity({
                     name = carriage.name,
                     force = game.forces.player,
+                    snap_to_train_stop = false,
                     position = {x=sp.x + ox, y=sp.y + oy},
                     direction = spawnDirection
                 })
