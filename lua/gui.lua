@@ -1279,7 +1279,7 @@ function CreateZone(name, topLeftX, topLeftY, width, height, zoneIndex, drawZone
     if(zoneIndex == nil or zoneIndex <= 0) then
         zoneIndex = #global.config.zones
     else
-        zoneConfig.restrictions = global.config.zones[zoneIndex].restrictions
+        zoneConfig.restrictions = global.config.zones and global.config.zones[zoneIndex] and global.config.zones[zoneIndex].restrictions or nil
     end
 
 
@@ -1309,7 +1309,10 @@ end
 
 -- e.g. CreateZoneRestriction('FromZoneOnLocalServer','TargetServer','TargetZone')
 function CreateZoneRestriction(zoneIndex, toZoneServerName, toZoneName)
-    local fromZone = global.config.zones[zoneIndex]
+    local fromZone = global.config.zones and global.config.zones[zoneIndex] or nil
+    if not fromZone then
+        return
+    end
     if fromZone.restrictions == nil then fromZone.restrictions = {} end
     -- add this restriction to the currently selected zone
     table.insert(fromZone.restrictions, {
