@@ -1326,7 +1326,7 @@ function CreateZoneRestriction(zoneIndex, toZoneServerName, toZoneName)
         zone = fromZone
     }
     -- send to master
-    game.write_file(fileName, table_to_json(package) .. "\n", true, 0)
+    game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 end
 
 return guiApi
