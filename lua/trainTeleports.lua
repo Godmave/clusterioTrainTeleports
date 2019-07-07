@@ -20,6 +20,7 @@ local function initialize()
     global.trainsToSpawn = global.trainsToSpawn or {}
     global.trainLastSpawnTick = global.trainLastSpawnTick or {}
     global.zones = global.zones or {}
+    global.stationQueue = global.stationQueue or {}
 end
 
 script.on_load(function()
