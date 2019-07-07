@@ -733,13 +733,15 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     end
 
 
-    local cleanStationQueue = {}
-    for k, v in pairs(global.stationQueue) do
-        if v > 0 then
-            cleanStationQueue[k] = v
+    if global.stationQueue and #global.stationQueue > 0 then
+        local cleanStationQueue = {}
+        for k, v in pairs(global.stationQueue) do
+            if v > 0 then
+                cleanStationQueue[k] = v
+            end
         end
+        global.stationQueue = cleanStationQueue
     end
-    global.stationQueue = cleanStationQueue
 end)
 
 script.on_event(defines.events.on_train_changed_state, function (event)
