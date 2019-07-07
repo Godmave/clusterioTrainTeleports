@@ -139,7 +139,7 @@ local function collectReachables(serverName, stopName, onlyRestricted)
                                         reachableStops[restriction.server][restriction.zone] = {}
 
                                         local serverZones = global.remoteZoneStops[tostring(trainStopTrackingApi.lookupNameToId(restriction.server))]
-                                        if serverZones then
+                                        if serverZones and serverZones[restriction.zone] then
                                             for ____, stopName in pairs(serverZones[restriction.zone]) do
                                                 reachableStops[restriction.server][restriction.zone][stopName] = true
                                             end
