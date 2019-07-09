@@ -6,6 +6,7 @@ todo:
 local sqrt = math.sqrt
 local abs = math.abs
 local pow = math.pow
+local insert = table.insert
 
 
 local function unalert_all_players(entity)
@@ -304,7 +305,7 @@ local function deserialize_inventory(inventory, data)
     end
 end
 
-local function deserialize_train(station, data, oppositeStations)
+local function deserialize_train(station, data, oppositeStations, schedule)
     local rotation
     if bit32.band(station.direction, 2) == 0 then
         rotation = { 1, 0, 0, 1 }
@@ -330,7 +331,47 @@ local function deserialize_train(station, data, oppositeStations)
             dataIncrement = 1
         end
 
+        local spawnPath = nil
+
+        --[[todo:
+            - spawn single(or maybe two opposite?) loco(s), set schedule, get path rails (https://lua-api.factorio.com/latest/LuaRailPath.html), destroy loco
+            - if you got path, use it to spawn carriages
+            - if no path was obtained, use the old straight rail approach
+        ]]
+
+
+
+        --[[
+        local ox, oy = -2, 3
+        ox, oy = rotation[1] * ox + rotation[2] * oy, rotation[3] * ox + rotation[4] * oy
+        local spawnDirection = (station.direction + 4) % 8
+        local entity = game.surfaces[1].create_entity({
+            name = "locomotive",
+            force = game.forces.player,
+            snap_to_train_stop = false,
+            position = {x=sp.x + ox, y=sp.y + oy},
+            direction = spawnDirection
+        })
+
+        entity.train.schedule = schedule
+        entity.train.manual_mode = false
+
+        local spawnPathNeeded = #data * 3 + #data - 1
+        if entity.train.has_path then
+            spawnPath = {}
+            for _, rail in pairs(entity.train.path.rails) do
+                insert(spawnPath, rail)
+
+                if #spawnPath == spawnPathNeeded then
+                    break
+                end
+            end
+        end
+        entity.destroy()
+        ]]
+
         local buildIdx = 1
+        local railIdx = 1
         for idx = dataStartIndex, dataEndIndex, dataIncrement do
             local carriage = data[idx]
 
@@ -342,12 +383,29 @@ local function deserialize_train(station, data, oppositeStations)
                 flipped = 1 - flipped
             end
 
+            local spawnPosition
+            if spawnPath then
+                local rail = spawnPath[railIdx]
+                game.print(serpent.line({rail.name, rail.type}))
+                if rail.type == "straight-rail" then
+                    railIdx = railIdx + 1
+                    rail = spawnPath[railIdx]
+                    if rail.type ~= "straight-rail" then
+                        railIdx = railIdx - 1
+                    end
+                end
+
+                spawnPosition = rail.position
+            else
+                spawnPosition = {x=sp.x + ox, y=sp.y + oy}
+            end
+
             local spawnDirection = (station.direction + flipped * 4) % 8
             local entity = game.surfaces[1].create_entity({
                 name = carriage.name,
                 force = game.forces.player,
                 snap_to_train_stop = false,
-                position = {x=sp.x + ox, y=sp.y + oy},
+                position = spawnPosition,
                 direction = spawnDirection
             })
 
@@ -358,7 +416,7 @@ local function deserialize_train(station, data, oppositeStations)
                     name = carriage.name,
                     force = game.forces.player,
                     snap_to_train_stop = false,
-                    position = {x=sp.x + ox, y=sp.y + oy},
+                    position = spawnPosition,
                     direction = spawnDirection
                 })
             end
@@ -398,6 +456,7 @@ local function deserialize_train(station, data, oppositeStations)
             end
 
             buildIdx = buildIdx + 1
+            railIdx = railIdx + 1
         end
     end, function (error_message)
         log(error_message)
@@ -416,7 +475,7 @@ local function escape_pattern(text)
     return text:gsub("([^%w])", "%%%1")
 end
 
-local function deserialize_train_schedule(train, schedule, oppositeStations)
+local function deserialize_train_schedule(schedule, oppositeStations)
     if schedule == nil then
         return
     end
@@ -433,8 +492,7 @@ local function deserialize_train_schedule(train, schedule, oppositeStations)
     end
 
     schedule.current = (schedule.current + (oppositeStations and 1 or 0)) % #schedule.records + 1
-    train.schedule = schedule
-    train.manual_mode = false
+    return schedule
 end
 
 
@@ -642,9 +700,11 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             end
             oppositeStations = math.abs(v.targetStation.direction - v.sendingStationDirection) == 4
 
-            local created_train = deserialize_train(v.targetStation, v.train, oppositeStations)
+            local train_schedule = deserialize_train_schedule(v.schedule, oppositeStations)
+            local created_train = deserialize_train(v.targetStation, v.train, oppositeStations, train_schedule)
             if created_train then
-                deserialize_train_schedule(created_train, v.schedule, oppositeStations)
+                created_train.schedule = train_schedule
+                created_train.manual_mode = false
                 global.trainsToSpawn[k] = nil
                 if global.stationQueue then
                     if global.stationQueue[v.targetStation.backer_name] and global.stationQueue[v.targetStation.backer_name] > 0 then
@@ -702,7 +762,6 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                 reroute = true
             elseif targetState == CAN_SPAWN_RESULT.no_station then
                 -- at this point v.targetStation is invalid, so we have to use the schedule
-                game.print("Station "..stationName.." got removed after being set as teleport spawn target, trying to redirect")
                 reroute = true
             end
 

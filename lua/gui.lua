@@ -194,8 +194,22 @@ local function collectReachables(serverName, stopName, onlyRestricted)
 
         ::gotthemall::
 
-        -- add all non-teleporting stops from that server
         if not onlyRestricted then
+            -- add all stops from that server
+            reachableStops[serverName] = {}
+            local zoneStops = global.remoteZoneStops[tostring(serverId)]
+            if zoneStops ~= nil then
+                for zoneName, stops in pairs(global.remoteZoneStops[tostring(serverId)]) do
+                    reachableStops[serverName][zoneName] = {}
+                    for stopId, stopName in pairs(stops) do
+                        reachableStops[serverName][zoneName][stopName] = true
+                    end
+                end
+            end
+
+
+            -- add all non-teleporting stops from that server
+            --[[
             if global.remoteZoneStops and global.remoteZoneStops[tostring(serverId)] and global.remoteZoneStops[tostring(serverId)][""] then
                 reachableStops[serverName] = reachableStops[serverName] or {}
                 reachableStops[serverName][""] = reachableStops[serverName][""] or {}
@@ -203,6 +217,7 @@ local function collectReachables(serverName, stopName, onlyRestricted)
                     reachableStops[serverName][""][stopName] = true
                 end
             end
+            ]]
         end
     else
         -- most likely when no stop is added to the schedule yet, add all stops from this server
@@ -709,6 +724,36 @@ local function gui_zonemanager_stops(player_index)
 
 end
 
+local function gui_serverconnect(player_index)
+    if table_size(global.servers) == 0 then
+        return
+    end
+
+    if global.serverconnect == nil then
+        global.serverconnect = {}
+    end
+
+    local player = game.players[player_index]
+
+    if global.serverconnect[player_index] then
+        global.serverconnect[player_index].gui.destroy()
+        global.serverconnect[player_index] = nil
+        player.opened = nil
+        return
+    end
+
+
+    global.serverconnect[player_index] = {}
+    global.serverconnect[player_index].gui = player.gui.top.add{type = 'frame', name = 'clusterio-serverconnect', direction = 'vertical', caption = 'Choose server'}
+    local gui = global.serverconnect[player_index].gui
+    player.opened = gui
+
+    local list = gui.add{type="flow", name="Servers"}
+    for _, i in pairs(global.servers) do
+        list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i.instanceName}
+    end
+end
+
 
 local function gui_zonemanager(player_index)
     if global.zones == nil then
@@ -924,9 +969,27 @@ end)
 script.on_event(defines.events.on_gui_click, function (event)
     local element_name = event.element.name
 
+    -- serverconnect top-button
+    if element_name == "clusterio-serverconnect" then
+        gui_serverconnect(event.player_index)
+        return
+    end
+
     -- zonemanager top-button
     if element_name == "clusterio-trainteleport" then
         gui_zonemanager(event.player_index)
+        return
+    end
+
+    if string.find(element_name, 'clusterio-server-',1,true) then
+        element_name = string.gsub(element_name, '^clusterio%-server%-', "")
+        local server = global.servers[element_name]
+
+        if server then
+            game.players[event.player_index].connect_to_server({address = server.publicIP .. ":" .. server.serverPort, name = server.instanceName})
+            gui_serverconnect(event.player_index)
+        end
+
         return
     end
 
@@ -1221,6 +1284,26 @@ local function checkbutton(e)
         end
     end
 
+
+
+
+    button = anchorpoint["clusterio-serverconnect"]
+
+    if button then
+        button.destroy()
+        button = nil
+    end
+
+    if player.admin then
+        if not button then
+            button = anchorpoint.add{
+                type = "sprite-button",
+                name = "clusterio-serverconnect",
+                sprite = "utility/surface_editor_icon",
+                style = mod_gui.button_style
+            }
+        end
+    end
 end
 
 script.on_event(defines.events.on_player_joined_game, checkbutton)

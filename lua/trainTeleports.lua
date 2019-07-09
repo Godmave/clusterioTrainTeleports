@@ -21,6 +21,7 @@ local function initialize()
     global.trainLastSpawnTick = global.trainLastSpawnTick or {}
     global.zones = global.zones or {}
     global.stationQueue = global.stationQueue or {}
+    global.servers = global.servers or {}
 end
 
 script.on_load(function()
@@ -100,6 +101,8 @@ remote.add_interface("trainTeleports", {
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
+        elseif data.event == "instances" then
+            global.servers = data.data
         end
 
     end,
