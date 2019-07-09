@@ -1294,15 +1294,13 @@ local function checkbutton(e)
         button = nil
     end
 
-    if player.admin then
-        if not button then
-            button = anchorpoint.add{
-                type = "sprite-button",
-                name = "clusterio-serverconnect",
-                sprite = "utility/surface_editor_icon",
-                style = mod_gui.button_style
-            }
-        end
+    if not button then
+        button = anchorpoint.add{
+            type = "sprite-button",
+            name = "clusterio-serverconnect",
+            sprite = "utility/surface_editor_icon",
+            style = mod_gui.button_style
+        }
     end
 end
 
