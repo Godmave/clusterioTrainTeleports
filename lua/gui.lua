@@ -196,9 +196,7 @@ local function collectReachables(serverName, stopName, onlyRestricted)
 
         if not onlyRestricted then
             -- add all stops from that server
-            if not reachableStops[serverName] then
-                reachableStops[serverName] = {}
-            end
+            reachableStops[serverName] = reachableStops[serverName] or {}
             local zoneStops = global.remoteZoneStops[tostring(serverId)]
             if zoneStops ~= nil then
                 for zoneName, stops in pairs(global.remoteZoneStops[tostring(serverId)]) do
