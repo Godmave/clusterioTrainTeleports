@@ -425,6 +425,9 @@ local function find_station(stationName, trainSize, ignoreThisStationEntity)
                 station = bestStation
             elseif nextBestStation ~= nil then
                 station = nextBestStation
+            elseif laststation then
+                -- try this, just so we have any station to pin a message on?
+                station = laststation
             end
 
             -- this should only ever not be true if the train in question is too long for any of the stations or no station is valid at all
