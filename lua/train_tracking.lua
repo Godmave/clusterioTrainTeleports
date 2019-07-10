@@ -703,7 +703,12 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             local train_schedule = deserialize_train_schedule(v.schedule, oppositeStations)
             local created_train = deserialize_train(v.targetStation, v.train, oppositeStations, train_schedule)
             if created_train then
-                created_train.schedule = train_schedule
+                xpcall(function ()
+                    created_train.schedule = train_schedule
+                end, function (error_message)
+                    log(error_message)
+                    log(serpent.block(train_schedule))
+                end)
                 created_train.manual_mode = false
                 global.trainsToSpawn[k] = nil
                 if global.stationQueue then
