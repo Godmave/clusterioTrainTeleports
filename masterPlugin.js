@@ -120,9 +120,7 @@ class trainTeleporter{
 	async setZones(instanceZones) {
         let zones = await this.master.getZones();
         zones[this.instanceID] = instanceZones;
-        if (instanceZones && instanceZones.length > 0) {
-            await this.master.propagateZones();
-        }
+        await this.master.propagateZones();
     }
 	async addZone(zoneIndex, zone){
 		let zones = await this.master.getZones();

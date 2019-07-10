@@ -744,13 +744,16 @@ local function gui_serverconnect(player_index)
 
 
     global.serverconnect[player_index] = {}
-    global.serverconnect[player_index].gui = player.gui.top.add{type = 'frame', name = 'clusterio-serverconnect', direction = 'vertical', caption = 'Choose server'}
+    global.serverconnect[player_index].gui = player.gui.top.add{type = 'frame', name = 'clusterio-serverconnect', direction = 'vertical', caption = 'You are on "' .. global.servers[tostring(global.worldID)].instanceName .. '". Where to go now?'}
     local gui = global.serverconnect[player_index].gui
     player.opened = gui
 
     local list = gui.add{type="flow", name="Servers"}
     for _, i in pairs(global.servers) do
-        list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i.instanceName}
+        if tostring(_) == tostring(global.worldID) then
+        else
+            list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i.instanceName}
+        end
     end
 end
 

@@ -68,7 +68,7 @@ module.exports = class remoteCommands {
              console.log("got zones from master");
             this.zonesDB = zonesDB;
             await this.applyZonesDB();
-            this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify({event: "instances", data: await clusterUtil.getInstances(this.config)})) + '")');
+            this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify({event: "instances", data: await clusterUtil.getInstances(this.config, zonesDB)})) + '")');
         });
 
 
@@ -154,7 +154,7 @@ module.exports = class remoteCommands {
     }
 	async scriptOutput(data){
 		if(data !== null){
-			this.messageInterface(data);
+			// this.messageInterface(data);
 
 			if(data.substr(0,5) !== 'event') {
                 this.socket.emit("trainteleport_json", JSON.parse(data));
