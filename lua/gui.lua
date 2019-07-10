@@ -742,9 +742,12 @@ local function gui_serverconnect(player_index)
         return
     end
 
+    if not global.worldID then
+        return
+    end
 
     global.serverconnect[player_index] = {}
-    global.serverconnect[player_index].gui = player.gui.top.add{type = 'frame', name = 'clusterio-serverconnect', direction = 'vertical', caption = 'You are on "' .. global.servers[tostring(global.worldID)].instanceName .. '". Where to go now?'}
+    global.serverconnect[player_index].gui = player.gui.top.add{type = 'frame', name = 'clusterio-serverconnect', direction = 'vertical', caption = 'You are on "' .. (global.servers and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName) .. '". Where to go now?'}
     local gui = global.serverconnect[player_index].gui
     player.opened = gui
 
