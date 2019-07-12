@@ -25,7 +25,7 @@ local function initialize()
 end
 
 script.on_load(function()
-    initialize()
+    -- initialize()
 end)
 
 script.on_init(function()
