@@ -673,6 +673,10 @@ local function gui_zonemanager_restrictions(player_index)
 
     state.selectedZone = state.selectedZone or 1
 
+    if not global.config.zones[state.selectedZone] then
+        return
+    end
+
     local options = gui_generic_dropdown(global.config.zones, "name", "clusterio-trainteleport-restriction-zone", state.selectedZone)
 
     local flow = frame.add{type="flow", direction="horizontal"}
