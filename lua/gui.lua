@@ -929,7 +929,7 @@ script.on_event(defines.events.on_train_schedule_changed, function(event)
     if player_index then
         if global.custom_locomotive_gui then
             for _, state in pairs(global.custom_locomotive_gui) do
-                if state.train.id == train.id then
+                if state.train and state.train.valid and state.train.id == train.id then
                     gui_trainstops(state.rightPane, state)
                 end
             end
@@ -1159,7 +1159,7 @@ script.on_event(defines.events.on_gui_click, function (event)
 
                 gui_trainstops_add(state, station, #state.trainstopdata + 1)
 
-                local schedule = state.train.schedule
+                local schedule = state.train and state.train.valid and state.train.schedule
                 if schedule == nil then
                     schedule = {
                         current = 1,
