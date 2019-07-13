@@ -1233,9 +1233,10 @@ script.on_event(defines.events.on_gui_click, function (event)
 
                     state.lastSelectedScheduleStop = #schedule.records
                 end
-                state.train.schedule = schedule
-
-                gui_trainstops(state.rightPane, state)
+                if state.train and state.train.valid then
+                    state.train.schedule = schedule
+                    gui_trainstops(state.rightPane, state)
+                end
             else
                 gui_markServerStop(state, station)
             end
@@ -1316,6 +1317,16 @@ script.on_event(defines.events.on_player_demoted, checkbutton)
 
 
 script.on_event(defines.events.on_player_removed, function (event)
+    local player_index = event.player_index
+
+    if global.custom_locomotive_gui and global.custom_locomotive_gui[player_index] then
+        local state = global.custom_locomotive_gui[player_index]
+        global.custom_locomotive_gui[player_index] = nil
+        gui_destroy(state)
+    end
+end)
+
+script.on_event(defines.events.on_player_left_game, function (event)
     local player_index = event.player_index
 
     if global.custom_locomotive_gui and global.custom_locomotive_gui[player_index] then
