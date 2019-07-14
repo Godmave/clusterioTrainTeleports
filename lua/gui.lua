@@ -674,6 +674,9 @@ local function gui_zonemanager_restrictions(player_index)
     state.selectedZone = state.selectedZone or 1
 
     if not global.config.zones[state.selectedZone] then
+        state.selectedZone = 1
+    end
+    if not global.config.zones[state.selectedZone] then
         return
     end
 
