@@ -749,7 +749,7 @@ local function gui_serverconnect(player_index)
         return
     end
 
-    if not global.worldID then
+    if not (global.worldID and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName) then
         return
     end
 
