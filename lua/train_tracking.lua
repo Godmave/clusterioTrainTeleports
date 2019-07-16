@@ -1,6 +1,6 @@
 --[[
 todo:
-- stops of other zones on remote servers are not visible if they are not teleport reachable by the "current" stop zone on that server
+- stops containing @ crash the server
 ]]
 
 local sqrt = math.sqrt
@@ -483,15 +483,12 @@ local function deserialize_train_schedule(schedule, oppositeStations)
         return
     end
 
+    local myInstanceName = trainStopTrackingApi.lookupIdToServerName(0)
     for _, record in ipairs(schedule.records) do
-        local myInstanceName = trainStopTrackingApi.lookupIdToServerName(0)
-        for _, record in ipairs(schedule.records) do
-            -- remove the @ instanceName from local stations
-            if record.station:match("@ " .. escape_pattern(myInstanceName)) then
-                record.station = record.station:match("^(<CT?[0-9%+]*> .*) @")
-            end
+        -- remove the @ instanceName from local stations
+        if record.station:match("@ " .. escape_pattern(myInstanceName)) then
+            record.station = record.station:match("^(<CT?[0-9%+]*> .*) @")
         end
-
     end
 
     schedule.current = (schedule.current + (oppositeStations and 1 or 0)) % #schedule.records + 1

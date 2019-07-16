@@ -111,6 +111,7 @@ local function sanitize_stop_name(entity)
     end
 
     name = name:match'^()%s*$' and '' or name:match'^%s*(.*%S)'
+    name = string.gsub(name, '@', " at ")
     name = string.gsub(name, '^<CT[0-9%+]*>', "")
     name = string.gsub(name, '^<C>', "")
     name = name:match'^()%s*$' and '' or name:match'^%s*(.*%S)'

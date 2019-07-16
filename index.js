@@ -73,6 +73,7 @@ module.exports = class remoteCommands {
 
 
         this.socket.on("trainteleport_json", async data => {
+//            this.messageInterface('/silent-command remote.call("trainTeleports","runCode", "game.print(\'≥\')")');
             this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify(data)) + '")');
         });
 
