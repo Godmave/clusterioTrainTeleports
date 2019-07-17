@@ -481,7 +481,7 @@ local function gui_trainstops(parent, self)
     self.trainstopdata = {}
     self.trainstop_selected = nil
 
-    if self.train and self.train.schedule and #self.train.schedule.records > 0 then
+    if self.train and self.train.valid and self.train.schedule and #self.train.schedule.records > 0 then
         if self.lastSelectedScheduleStop == nil then
             self.lastSelectedScheduleStop = self.train.schedule.current
         elseif self.lastSelectedScheduleStop > #self.train.schedule.records then
@@ -1253,7 +1253,7 @@ script.on_event(defines.events.on_gui_click, function (event)
             key = tonumber(key)
 
             if key == state.lastSelectedScheduleStop then
-                local schedule = state.train.schedule
+                local schedule = state.train and state.train.valid and state.train.schedule
                 if schedule ~= nil then
                     schedule.current = key
                     state.train.schedule = schedule
