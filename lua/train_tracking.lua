@@ -431,6 +431,13 @@ local function deserialize_train(station, data, oppositeStations, schedule)
                 error("failed to create train carriage entity")
             end
 
+            -- in case this train gets merged with another train, the carriage count will not match the buildIdx anymore
+            -- remove all build carriages
+            -- caveat: the train we accidentally connected to will be in manual_mode now, but we can't set it to auto since we can not be sure it was on auto in the first place
+            if #entity.train.carriages > buildIdx then
+                error("merged with other train")
+            end
+
             if carriage.color then
                 entity.color = carriage.color
             end
@@ -689,109 +696,115 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     end
 
     for k, v in pairs(global.trainsToSpawn) do
-        -- game.print("Trying to spawn train at: "..v.targetStation.backer_name)
-        local targetState = trainStopTrackingApi.can_spawn_train(v.targetStation, #v.train)
+        if not (v.lastTry and v.lastTry > event.tick - TELEPORT_COOLDOWN_TICKS) then
+            v.lastTry = nil
+            -- game.print("Trying to spawn train at: "..v.targetStation.backer_name)
+            local targetState = trainStopTrackingApi.can_spawn_train(v.targetStation, #v.train)
 
-        -- if there are no signals spawn anyway, maybe it is a lone track without need for signals
-        if targetState == CAN_SPAWN_RESULT.ok then
-            local oppositeStations
-            if not v.sendingStationDirection then
-                v.sendingStationDirection = 0 -- just catch in transit trains of previous versions
-            end
-            oppositeStations = math.abs(v.targetStation.direction - v.sendingStationDirection) == 4
-
-            local train_schedule = deserialize_train_schedule(v.schedule, oppositeStations)
-            local created_train = deserialize_train(v.targetStation, v.train, oppositeStations, train_schedule)
-            if created_train then
-                xpcall(function ()
-                    created_train.schedule = train_schedule
-                end, function (error_message)
-                    log(error_message)
-                    log(serpent.block(train_schedule))
-                end)
-                created_train.manual_mode = false
-                global.trainsToSpawn[k] = nil
-                if global.stationQueue then
-                    if global.stationQueue[v.targetStation.backer_name] and global.stationQueue[v.targetStation.backer_name] > 0 then
-                        global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
-                    end
-                    if global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
-                        global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
-                        global.trainLastSpawnTick[created_train.id] = event.tick;
-                    end
+            -- if there are no signals spawn anyway, maybe it is a lone track without need for signals
+            if targetState == CAN_SPAWN_RESULT.ok then
+                local oppositeStations
+                if not v.sendingStationDirection then
+                    v.sendingStationDirection = 0 -- just catch in transit trains of previous versions
                 end
+                oppositeStations = math.abs(v.targetStation.direction - v.sendingStationDirection) == 4
 
-                -- after spawning a train at the station unblock it again if it was blocked
-                local fullName = v.targetStation.backer_name.." @ "..trainStopTrackingApi.lookupIdToServerName()
-                if global.blockedStations[fullName] == true then
-                    global.blockedStations[fullName] = nil
-                    game.write_file(fileName, "event:trainstop_unblocked|name:"..fullName.."\n", true, 0)
-                end
-            else
-                alert_all_players(v.targetStation,"Could not spawn train, player standing on the rails? Trying to redirect")
-                local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train)
-                if newStation.valid then
-                    if global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
-                        global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
-                    end
-                    v.targetStation = newStation
-                    global.trainsToSpawn[k] = v
-                end
-            end
-        else
-            local reroute = false
-            local stationName
-
-            if v.targetStation and v.targetStation.valid then
-                stationName = v.targetStation.backer_name
-            else
-                local train_schedule = v.schedule
-                local current_stop = train_schedule.current
-                local number_of_stops = #train_schedule.records
-                local next_stop = current_stop + 1
-
-                if next_stop > number_of_stops then
-                    next_stop = 1
-                end
-                stationName = train_schedule.records[next_stop].station:match("^(<CT?[0-9%+]*> .*) @")
-            end
-
-            if targetState == CAN_SPAWN_RESULT.blocked then
-                alert_all_players(v.targetStation,"Station is blocked, trying to redirect")
-                reroute = true
-            elseif targetState == CAN_SPAWN_RESULT.no_adjacent_rail then
-                alert_all_players(v.targetStation,"Station has no rails, trying to redirect")
-                reroute = true
-            elseif targetState == CAN_SPAWN_RESULT.not_enough_track then
-                alert_all_players(v.targetStation,"Station has not enough room, trying to redirect")
-                reroute = true
-            elseif targetState == CAN_SPAWN_RESULT.no_station then
-                -- at this point v.targetStation is invalid, so we have to use the schedule
-                reroute = true
-            end
-
-            if reroute then
-                local newStation = nil
-                newStation = trainStopTrackingApi.find_station(stationName, #v.train)
-                if not newStation.valid then
-                    -- game.print("Station "..stationName.." does not have the right length. Keeping the train in limbo")
-                    newStation = trainStopTrackingApi.find_station(stationName, 1)
-                end
-
-                if newStation and newStation.valid then
-                    if v.targetStation and v.targetStation.valid and global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
-                        global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                local train_schedule = deserialize_train_schedule(v.schedule, oppositeStations)
+                local created_train = deserialize_train(v.targetStation, v.train, oppositeStations, train_schedule)
+                if created_train then
+                    xpcall(function ()
+                        created_train.schedule = train_schedule
+                    end, function (error_message)
+                        log(error_message)
+                        log(serpent.block(train_schedule))
+                    end)
+                    created_train.manual_mode = false
+                    global.trainsToSpawn[k] = nil
+                    if global.stationQueue then
+                        if global.stationQueue[v.targetStation.backer_name] and global.stationQueue[v.targetStation.backer_name] > 0 then
+                            global.stationQueue[v.targetStation.backer_name] = global.stationQueue[v.targetStation.backer_name] - 1
+                        end
+                        if global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
+                            global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                            global.trainLastSpawnTick[created_train.id] = event.tick;
+                        end
                     end
 
-                    v.targetStation = newStation
-                    global.trainsToSpawn[k] = v
+                    -- after spawning a train at the station unblock it again if it was blocked
+                    local fullName = v.targetStation.backer_name.." @ "..trainStopTrackingApi.lookupIdToServerName()
+                    if global.blockedStations[fullName] == true then
+                        global.blockedStations[fullName] = nil
+                        game.write_file(fileName, "event:trainstop_unblocked|name:"..fullName.."\n", true, 0)
+                    end
                 else
-                    -- game.print("No station with name "..v.targetStation.backer_name.." found, keeping this train in limbo (forever)")
-                    local fullName = stationName.." @ "..trainStopTrackingApi.lookupIdToServerName()
-                    if not global.blockedStations[fullName] then
-                        game.print("block station in redirect "..fullName)
-                        global.blockedStations[fullName] = true
-                        game.write_file(fileName, "event:trainstop_blocked|name:"..fullName.."\n", true, 0)
+                    alert_all_players(v.targetStation,"Could not spawn train, player standing on the rails? Trying to redirect")
+                    local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train, v.targetStation)
+                    if newStation.valid then
+                        if global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
+                            global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                        end
+                        v.targetStation = newStation
+                        global.trainsToSpawn[k] = v
+                    else
+                        v.lastTry = event.tick
+                        global.trainsToSpawn[k] = v
+                    end
+                end
+            else
+                local reroute = false
+                local stationName
+
+                if v.targetStation and v.targetStation.valid then
+                    stationName = v.targetStation.backer_name
+                else
+                    local train_schedule = v.schedule
+                    local current_stop = train_schedule.current
+                    local number_of_stops = #train_schedule.records
+                    local next_stop = current_stop + 1
+
+                    if next_stop > number_of_stops then
+                        next_stop = 1
+                    end
+                    stationName = train_schedule.records[next_stop].station:match("^(<CT?[0-9%+]*> .*) @")
+                end
+
+                if targetState == CAN_SPAWN_RESULT.blocked then
+                    alert_all_players(v.targetStation,"Station is blocked, trying to redirect")
+                    reroute = true
+                elseif targetState == CAN_SPAWN_RESULT.no_adjacent_rail then
+                    alert_all_players(v.targetStation,"Station has no rails, trying to redirect")
+                    reroute = true
+                elseif targetState == CAN_SPAWN_RESULT.not_enough_track then
+                    alert_all_players(v.targetStation,"Station has not enough room, trying to redirect")
+                    reroute = true
+                elseif targetState == CAN_SPAWN_RESULT.no_station then
+                    -- at this point v.targetStation is invalid, so we have to use the schedule
+                    reroute = true
+                end
+
+                if reroute then
+                    local newStation = nil
+                    newStation = trainStopTrackingApi.find_station(stationName, #v.train)
+                    if not newStation.valid then
+                        -- game.print("Station "..stationName.." does not have the right length. Keeping the train in limbo")
+                        newStation = trainStopTrackingApi.find_station(stationName, 1)
+                    end
+
+                    if newStation and newStation.valid then
+                        if v.targetStation and v.targetStation.valid and global.stationQueue[v.targetStation.unit_number] and global.stationQueue[v.targetStation.unit_number] > 0 then
+                            global.stationQueue[v.targetStation.unit_number] = global.stationQueue[v.targetStation.unit_number] - 1
+                        end
+
+                        v.targetStation = newStation
+                        global.trainsToSpawn[k] = v
+                    else
+                        -- game.print("No station with name "..v.targetStation.backer_name.." found, keeping this train in limbo (forever)")
+                        local fullName = stationName.." @ "..trainStopTrackingApi.lookupIdToServerName()
+                        if not global.blockedStations[fullName] then
+                            game.print("block station in redirect "..fullName)
+                            global.blockedStations[fullName] = true
+                            game.write_file(fileName, "event:trainstop_blocked|name:"..fullName.."\n", true, 0)
+                        end
                     end
                 end
             end

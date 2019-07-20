@@ -403,7 +403,7 @@ local function find_station(stationName, trainSize, ignoreThisStationEntity)
 
         if global.shared_train_stops then -- and global.blockedStations[fullName] ~= true then
             for i,v in pairs(global.shared_train_stops) do
-                if v.name == stationName and v ~= ignoreThisStationEntity and v.entity.valid then
+                if v.name == stationName and v.entity ~= ignoreThisStationEntity and v.entity.valid then
                     laststation = v.entity
 
                     if global.stationQueue[laststation.unit_number] == nil then
