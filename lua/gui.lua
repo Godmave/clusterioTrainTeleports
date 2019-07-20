@@ -762,7 +762,9 @@ local function gui_serverconnect(player_index)
     for _, i in pairs(global.servers) do
         if tostring(_) == tostring(global.worldID) then
         else
-            list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i.instanceName}
+            local b = list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i.instanceName}
+            b.style.height = 25
+            b.style.width = 7 * string.len(i.instanceName)
         end
     end
 end
