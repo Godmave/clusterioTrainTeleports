@@ -921,6 +921,8 @@ script.on_event(defines.events.on_gui_opened, function(event)
 
     state.player = player
     state.train = train
+    state.trainId = train.id
+    state.entity = entity
 
     gui_create(state)
     gui_populate(state, global.trainstopsData)    
@@ -949,16 +951,45 @@ script.on_event(defines.events.on_train_schedule_changed, function(event)
 end)
 
 
-script.on_event(defines.events.script_raised_destroy, function(event)
+local function checkForTrainStillValid(event)
+    if event.entity then
+        if event.entity.type == "locomotive" then
+        elseif event.entity.type == "cargo-wagon" then
+        elseif event.entity.type == "fluid-wagon" then
+        elseif event.entity.type == "artillery-wagon" then
+        else
+            return
+        end
+    end
     if global.custom_locomotive_gui then
         for k, state in pairs(global.custom_locomotive_gui) do
-            if not state.train.valid then
+            if not (state.entity and state.entity.valid and state.entity.unit_number ~= event.entity.unit_number) then
                 global.custom_locomotive_gui[k] = nil
                 gui_destroy(state)
             end
         end
     end
-end)
+end
+
+local function checkForTrainIdChange(event)
+    if global.custom_locomotive_gui then
+        for k, state in pairs(global.custom_locomotive_gui) do
+            if event.old_train_id_1 ~= nil and state.trainId and state.trainId == event.old_train_id_1 then
+                state.train = event.train
+                state.trainId = event.train.id
+            end
+            if event.old_train_id_2 ~= nil and state.trainId and state.trainId == event.old_train_id_2 then
+                state.train = event.train
+                state.trainId = event.train.id
+            end
+        end
+    end
+end
+
+script.on_event(defines.events.on_train_created, checkForTrainIdChange)
+script.on_event(defines.events.script_raised_destroy, checkForTrainStillValid)
+script.on_event(defines.events.on_player_mined_entity, checkForTrainStillValid)
+script.on_event(defines.events.on_robot_mined_entity, checkForTrainStillValid)
 
 script.on_event(defines.events.on_gui_closed, function (event)
     local player_index = event.player_index
