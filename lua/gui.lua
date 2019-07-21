@@ -1383,8 +1383,8 @@ function CreateZone(name, topLeftX, topLeftY, width, height, zoneIndex, drawZone
         end
     end
 
-    if(zoneIndex == nil or zoneIndex <= 0) then
-        zoneIndex = #global.config.zones
+    if(zoneIndex == nil or zoneIndex <= 0 or zoneIndex > #global.config.zones) then
+        zoneIndex = #global.config.zones + 1
     else
         zoneConfig.restrictions = global.config.zones and global.config.zones[zoneIndex] and global.config.zones[zoneIndex].restrictions or nil
     end
