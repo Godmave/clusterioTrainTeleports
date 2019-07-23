@@ -313,7 +313,7 @@ local function can_spawn_train(station, carriage_count)
     end
 
     local cb = station.get_control_behavior()
-    if cb and cb ~= nil and cb.connect_to_logistic_network and cb.disabled then
+    if cb and cb ~= nil and cb.disabled then
         return CAN_SPAWN_RESULT.no_station
     end
 
