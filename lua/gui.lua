@@ -758,7 +758,68 @@ local function gui_serverconnect(player_index)
     local gui = global.serverconnect[player_index].gui
     player.opened = gui
 
-    local list = gui.add{type="flow", name="Servers"}
+    global.serverconnect[player_index].servermap = {}
+    local servercolumcount = math.ceil(table_size(global.servers) / 10)
+
+    local columnServers = {}
+    local serverIndex = 1
+    for _, server in pairs(global.servers) do
+        if tostring(_) == tostring(global.worldID) then
+        else
+            local column = 1 + (serverIndex % servercolumcount)
+            local row = math.ceil(serverIndex / servercolumcount)
+
+            if not global.serverconnect[player_index].servermap[column] then
+                global.serverconnect[player_index].servermap[column] = {}
+            end
+            if not columnServers[column] then
+                columnServers[column] = {}
+            end
+
+            global.serverconnect[player_index].servermap[column][row] = server
+            columnServers[column][row] = {"", server.instanceName}
+            serverIndex = serverIndex + 1
+        end
+    end
+
+    local table = gui.add{type="table", column_count=servercolumcount}
+    for i=1, servercolumcount, 1 do
+        table.add{type="list-box", name="clusterio-servers-" .. i, items=columnServers[i]};
+    end
+
+--[[
+    local list = gui.add{type="table", column_count=10}
+
+    for _,i in pairs({
+        "Southern-Corridor",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "long name",
+        "much longer name"
+    }) do
+        local b = list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i}
+        b.style.height = 25
+        b.style.width = 10 * string.len(i)
+    end
+
     for _, i in pairs(global.servers) do
         if tostring(_) == tostring(global.worldID) then
         else
@@ -767,6 +828,7 @@ local function gui_serverconnect(player_index)
             b.style.width = 7 * string.len(i.instanceName)
         end
     end
+]]
 end
 
 
@@ -820,7 +882,30 @@ end
 
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-    local element_name = event.element.name
+    local player_index = event.player_index
+    local element = event.element
+    local element_name = element.name
+
+    if string.find(element_name, 'clusterio-servers-',1,true) then
+        local selected_index = element.selected_index
+
+        local column = string.gsub(element_name, '^clusterio%-servers%-', "")
+
+        local server = global.serverconnect[player_index]
+                    and global.serverconnect[player_index].servermap
+                    and global.serverconnect[player_index].servermap[tonumber(column)]
+                    and global.serverconnect[player_index].servermap[tonumber(column)][selected_index]
+
+        if server then
+            game.players[player_index].connect_to_server({address = server.publicIP .. ":" .. server.serverPort, name = server.instanceName})
+        end
+
+        gui_serverconnect(player_index)
+        return
+    end
+
+
+
     element_name = string.gsub(element_name, '^clusterio%-trainteleport%-', "")
 
     if element_name == "server" then
@@ -925,7 +1010,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
     state.entity = entity
 
     gui_create(state)
-    gui_populate(state, global.trainstopsData)    
+    gui_populate(state, global.trainstopsData)
 end)
 
 script.__on_configuration_changed = function()
