@@ -786,49 +786,6 @@ local function gui_serverconnect(player_index)
     for i=1, servercolumcount, 1 do
         table.add{type="list-box", name="clusterio-servers-" .. i, items=columnServers[i]};
     end
-
---[[
-    local list = gui.add{type="table", column_count=10}
-
-    for _,i in pairs({
-        "Southern-Corridor",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "long name",
-        "much longer name"
-    }) do
-        local b = list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i}
-        b.style.height = 25
-        b.style.width = 10 * string.len(i)
-    end
-
-    for _, i in pairs(global.servers) do
-        if tostring(_) == tostring(global.worldID) then
-        else
-            local b = list.add{type="button", name="clusterio-server-".._, style="image_tab_slot", caption=i.instanceName}
-            b.style.height = 25
-            b.style.width = 7 * string.len(i.instanceName)
-        end
-    end
-]]
 end
 
 
