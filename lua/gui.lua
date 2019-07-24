@@ -1005,7 +1005,7 @@ local function checkForTrainStillValid(event)
     end
     if global.custom_locomotive_gui then
         for k, state in pairs(global.custom_locomotive_gui) do
-            if not (state.entity and state.entity.valid and state.entity.unit_number ~= event.entity.unit_number) then
+            if not (state and state.entity and state.entity.valid and state.entity.unit_number ~= event.entity.unit_number) then
                 global.custom_locomotive_gui[k] = nil
                 gui_destroy(state)
             end
