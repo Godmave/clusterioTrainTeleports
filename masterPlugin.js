@@ -118,11 +118,13 @@ class trainTeleporter{
 	}
 
 	async setZones(instanceZones) {
+	    console.log("Instance: " + this.instanceID + " => setZones");
         let zones = await this.master.getZones();
         zones[this.instanceID] = instanceZones;
         await this.master.propagateZones();
     }
 	async addZone(zoneIndex, zone){
+        console.log("Instance: " + this.instanceID + " => addZone");
 		let zones = await this.master.getZones();
 
 		if(!zones[this.instanceID]) zones[this.instanceID] = {};
@@ -130,6 +132,7 @@ class trainTeleporter{
 		await this.master.propagateZones();
     }
 	async removeZone(zoneIndex){
+        console.log("Instance: " + this.instanceID + " => removeZone");
         let zones = await this.master.getZones();
         delete zones[this.instanceID][zoneIndex-1];
         await this.master.propagateZones();
@@ -156,28 +159,32 @@ class masterPlugin {
 
 		this.io.on("connection", socket => {
 		    this.socket = socket;
+            console.log("CONNECTION");
 
-			socket.on("registerTrainTeleporter", data => {
-				console.log("Registered train teleporter "+data.instanceID);
+            socket.on("registerSlave", async data => {
+                console.log("Registered train teleporter "+data.instanceID);
 
                 this.trainstopsDatabase[data.instanceID] = {};
 
+                socket.emit("PRE_trainTeleporter_registered");
                 this.clients[data.instanceID] = new trainTeleporter({
-					master:this,
-					instanceID: data.instanceID,
-					socket,
-				});
-				socket.emit("trainTeleporter_registered", {status:"ok"});
-				socket.emit("trainstopsDatabase", this.trainstopsDatabase);
-				socket.emit("zonesDatabase", this.zonesDatabase);
+                    master:this,
+                    instanceID: data.instanceID,
+                    socket,
+                });
+                socket.emit("trainTeleporter_registered");
+            });
 
-			});
+            socket.on("registerTrainTeleporter", async () => {
+                console.log("registerTrainTeleporter got a hit")
+            });
 
-            socket.on("disconnect", data => {
+            socket.on("disconnect", async () => {
                 for(let id in this.clients) {
                     if(this.clients[id].socket.id == socket.id) {
                         console.log("Lost connection to instance: " + id);
                         console.log("Removing its trainstops");
+                        console.log("TrainTeleport clients left: " + this.clients.length);
 
                         delete this.trainstopsDatabase[id];
                         this.propagateTrainstops();
@@ -216,7 +223,7 @@ class masterPlugin {
 	    this.propagateStopsTimeout = setTimeout(() => {
 //console.log(JSON.stringify(this.trainstopsDatabase));
             this.io.sockets.emit("trainstopsDatabase", this.trainstopsDatabase);
-        }, 100);
+        }, 500);
     }
     getZones(){
         return new Promise((resolve) => {
@@ -234,7 +241,7 @@ class masterPlugin {
 console.log("ZONES:", JSON.stringify(this.zonesDatabase));
             this.io.sockets.emit("zonesDatabase", this.zonesDatabase);
 
-        }, 100);
+        }, 500);
     }
 
 }
