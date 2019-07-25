@@ -1283,19 +1283,22 @@ script.on_event(defines.events.on_gui_click, function (event)
                 if schedule.records and state.lastSelectedScheduleStop and schedule.records[state.lastSelectedScheduleStop] then
                     local lastStop = schedule.records[state.lastSelectedScheduleStop].station
                     -- log("going from: " .. lastStop .. " to: " .. station)
+                    if lastStop then
 
-                    local lastStopServerName
-                    if not string.find(lastStop,"@", 1, true) then
-                        lastStopServerName = currentServer
-                    else
-                        lastStopServerName = lastStop:match("@ (.*)$")
-                    end
+                        local lastStopServerName
+                        if not string.find(lastStop,"@", 1, true) then
+                            lastStopServerName = currentServer
+                        else
+                            lastStopServerName = lastStop:match("@ (.*)$")
+                        end
 
-                    if string.find(lastStop, '<CT',1,true)
-                            and string.find(station, '<CT',1,true)
-                            and lastStopServerName ~= selectedServer
-                    then
-                        override_wait_condition = true
+                        if string.find(lastStop, '<CT',1,true)
+                                and string.find(station, '<CT',1,true)
+                                and lastStopServerName ~= selectedServer
+                        then
+                            override_wait_condition = true
+                        end
+
                     end
                 end
 
