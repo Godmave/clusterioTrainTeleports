@@ -489,7 +489,9 @@ local function gui_trainstops(parent, self)
         end
 
         for _, stop in ipairs(self.train.schedule.records) do
-            gui_trainstops_add(self, stop.station, _)
+            if stop.station then
+                gui_trainstops_add(self, stop.station, _)
+            end
         end
 
     end
@@ -589,6 +591,19 @@ local function gui_zonemanager_zones(player_index)
 
 end
 
+local function zoneAvailable(serverName, zoneName)
+    local serverId = trainStopTrackingApi.lookupNameToId(serverName)
+    local serverZones = global.zones[tostring(serverId)]
+
+    for __, zone in pairs(serverZones) do
+        if zone.name == zoneName then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function gui_zonemanager_zonerestriction(parent, _, restrictions, removeOnly)
     local server, zone = 1, 1
     local serverId
@@ -646,8 +661,18 @@ local function gui_zonemanager_zonerestriction(parent, _, restrictions, removeOn
             parent.add({type="label", caption = "no zones"})
         end
     else
-        parent.add{type="label", caption=restrictions[_].server}
-        parent.add{type="label", caption=restrictions[_].zone}
+        local server = parent.add{type="label", caption=restrictions[_].server}
+        local zone = parent.add{type="label", caption=restrictions[_].zone}
+
+        if not trainStopTrackingApi.lookupNameToId(restrictions[_].server) then
+            server.style.font_color = {r=1,g=0,b=0}
+            zone.style.font_color = {r=1,g=0,b=0}
+        else
+            if not zoneAvailable(restrictions[_].server, restrictions[_].zone) then
+                zone.style.font_color = {r=1,g=0,b=0}
+            end
+        end
+
     end
 
 
