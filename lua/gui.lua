@@ -1,7 +1,5 @@
 --[[
 todo:
-- show stops per zone
-later:
 - custom trainstop gui
 - show distance to destination
 - remote train "map"
@@ -47,30 +45,6 @@ local function gui_create(self)
 
     self.leftPane = root.add{type = 'frame', name = 'clusterio-trainteleport-serverstops', direction = 'vertical', caption = "Clusterio Trainstops"}
     self.rightPane = root.add{type = 'frame', name = 'clusterio-trainteleport-traintops', direction = 'vertical', caption = "Train-Schedule"}
-
-    --[[
-    self.toolPane = maintable.add{type = 'frame', name = 'clusterio-trainteleport-toolpane', direction = 'vertical', caption = ""}
-    self.toolPane.style.width = 38
-    self.toolPane.style.left_padding = 0
-    self.toolPane.style.right_padding = 0
-
-    local resetButton = self.toolPane.add{type="sprite-button", name="clusterio-trainteleport-reset", sprite="utility/reset"}
-    resetButton.style.width = 32
-    resetButton.style.height = 32
-
-    local trashButton = self.toolPane.add{type="sprite-button", name="clusterio-trainteleport-remove", sprite="utility/remove"}
-    trashButton.style.width = 32
-    trashButton.style.height = 32
-
-    local arrowUpButton = self.toolPane.add{type="sprite-button", name="clusterio-trainteleport-moveup", sprite="utility/hint_arrow_up"}
-    arrowUpButton.style.width = 32
-    arrowUpButton.style.height = 32
-
-    local arrowDownButton = self.toolPane.add{type="sprite-button", name="clusterio-trainteleport-movedown", sprite="utility/hint_arrow_down"}
-    arrowDownButton.style.width = 32
-    arrowDownButton.style.height = 32
-    ]]
-
     self.infoPane = root.add{type = 'frame', name = 'clusterio-trainteleport-infopane', direction = 'vertical', caption = "Info"}
     self.infoPane.visible = false
 end
@@ -206,18 +180,6 @@ local function collectReachables(serverName, stopName, onlyRestricted)
                     end
                 end
             end
-
-
-            -- add all non-teleporting stops from that server
-            --[[
-            if global.remoteZoneStops and global.remoteZoneStops[tostring(serverId)] and global.remoteZoneStops[tostring(serverId)][""] then
-                reachableStops[serverName] = reachableStops[serverName] or {}
-                reachableStops[serverName][""] = reachableStops[serverName][""] or {}
-                for ____, stopName in pairs(global.remoteZoneStops[tostring(serverId)][""]) do
-                    reachableStops[serverName][""][stopName] = true
-                end
-            end
-            ]]
         end
     else
         -- most likely when no stop is added to the schedule yet, add all stops from this server
@@ -409,8 +371,6 @@ local function gui_markServerStop(state, station)
     end
 end
 
-
-
 local function gui_markScheduleStop(state, key)
     state.infoPane.visible = true
     state.lastSelectedScheduleStop = key
@@ -509,6 +469,10 @@ local function gui_populate(self, remote_data)
     gui_trainstops(self.rightPane, self)
 end
 
+
+
+
+
 -- todo: support surface selection if there are more than nauvis available
 local function gui_zonemanager_zone(zone_table, _, zone, lastZone )
     local name, tlx, tly, w, h = "Zone ".._, "", "", "", ""
@@ -534,35 +498,13 @@ local function gui_zonemanager_zone(zone_table, _, zone, lastZone )
     end
 end
 
-local function addTabAndPanel(state, name, caption, selected)
-    local container = state.container
+local function addTabAndPanel(state, name, caption)
     local tabContainer = state.tabContainer
+    local tab = tabContainer.add{type="tab", name="clusterio-trainteleport-zonemanager-tab-"..name, caption=caption}
+    local content = tabContainer.add{type="flow", name="clusterio-trainteleport-zonemanager-"..name.."-frame", direction="vertical"}
 
-    state.tabNames = state.tabNames or {}
-
-    state.tabNames[name] = name
-
-    local tab
-    tab = tabContainer.add{type="button", name="clusterio-trainteleport-zonemanager-tab-"..name, style="image_tab_slot", caption=caption}
-    if selected then
-        tab.visible = false
-    end
-    tab.style.height = 30
-    tab.style.width = 120
-
-    tab = tabContainer.add{type="button", name="clusterio-trainteleport-zonemanager-tab-"..name.."-selected", style="image_tab_selected_slot", caption=caption}
-    if not selected then
-        tab.visible = false
-    end
-    tab.style.height = 30
-    tab.style.width = 120
-
-    local tabPanel = container.add{type="frame", name="clusterio-trainteleport-zonemanager-"..name.."-frame", direction="vertical"}
-    if not selected then
-        tabPanel.visible = false
-    end
-
-    return tabPanel
+    tabContainer.add_tab(tab, content)
+    return content
 end
 
 -- drops and recreates the global zonetable for the current player using global.config.zones
@@ -839,27 +781,18 @@ local function gui_zonemanager(player_index)
 
 
     global.zonemanager[player_index] = {}
-    global.zonemanager[player_index].gui = player.gui.center.add{type = 'frame', name = 'clusterio-trainteleport-zonemanager', direction = 'vertical', caption = 'Zone-Manager'}
+    global.zonemanager[player_index].gui = player.gui.screen.add{type = 'frame', name = 'clusterio-trainteleport-zonemanager', direction = 'vertical', caption = 'Zone-Manager'}
     local gui = global.zonemanager[player_index].gui
+    gui.auto_center = true
     player.opened = gui
 
-    global.zonemanager[player_index].container = gui.add{type="table", column_count=1}
-    local tightFrame = global.zonemanager[player_index].container
-    tightFrame.style.horizontal_spacing = 0
-    tightFrame.style.vertical_spacing = 0
+    global.zonemanager[player_index].tabContainer = gui.add{type="tabbed-pane"}
 
-
-    global.zonemanager[player_index].tabContainer = tightFrame.add{type="table", column_count=3}
-    local tabContainer = global.zonemanager[player_index].tabContainer
-    tabContainer.style.horizontal_spacing = 0
-    tabContainer.style.vertical_spacing = 0
-    tabContainer.style.left_padding = 2
-
-    global.zonemanager[player_index].zonesFrame = addTabAndPanel(global.zonemanager[player_index], "zones", "Zones", true)
+    global.zonemanager[player_index].zonesFrame = addTabAndPanel(global.zonemanager[player_index], "zones", "Zones")
     gui_zonemanager_zones(player_index)
 
     global.zonemanager[player_index].restrictionsFrame = addTabAndPanel(global.zonemanager[player_index], "restrictions", "Restrictions")
-    global.zonemanager[player_index].stopsFrame = addTabAndPanel(global.zonemanager[player_index], "stops", "Stops")
+    -- global.zonemanager[player_index].stopsFrame = addTabAndPanel(global.zonemanager[player_index], "stops", "Stops")
 end
 
 
@@ -1177,18 +1110,6 @@ script.on_event(defines.events.on_gui_click, function (event)
             return -- ignore clicks on already active tabs (for now)
         else
             local state = global.zonemanager[event.player_index]
-            for _ in pairs(state.tabNames) do
-                if _ == tab then
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._].visible = false
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._..'-selected'].visible = true
-                    state.container['clusterio-trainteleport-zonemanager-'.._..'-frame'].visible = true
-                else
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._].visible = true
-                    state.tabContainer['clusterio-trainteleport-zonemanager-tab-'.._..'-selected'].visible = false
-                    state.container['clusterio-trainteleport-zonemanager-'.._..'-frame'].visible = false
-                end
-            end
-
             if tab == "zones" then
                 gui_zonemanager_zones(event.player_index)
             elseif tab == "restrictions" then
@@ -1420,7 +1341,8 @@ local function checkbutton(e)
             type = "sprite-button",
             name = "clusterio-serverconnect",
             sprite = "utility/surface_editor_icon",
-            style = mod_gui.button_style
+            style = mod_gui.button_style,
+            tooltip = ""
         }
     end
 end
@@ -1451,8 +1373,26 @@ script.on_event(defines.events.on_player_left_game, function (event)
 end)
 
 
+
+local function updateServerUPS(ups)
+    local instanceName = (global.servers and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName)
+    if not instanceName then
+        return
+    end
+
+    for _, player in pairs(game.connected_players ) do
+        local anchorpoint = mod_gui.get_button_flow(player)
+        local button = anchorpoint["clusterio-serverconnect"]
+
+        if button then
+            button.tooltip = 'You are on "' .. instanceName .. '" - Server-UPS: ' .. ups
+        end
+    end
+end
+
 local guiApi = setmetatable({
     -- nothing so far
+    updateServerUPS = updateServerUPS
 },{
     __index = function(t, k)
     end,

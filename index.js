@@ -27,6 +27,10 @@ module.exports = class remoteCommands {
                     clearInterval(initInterval)
                 }
             }, 5000);
+
+            setInterval(async () => {
+                this.messageInterface('/silent-command remote.call("trainTeleports", "reportPassedSecond")');
+            }, 1000);
         };
 		
 		this.socket.on("hello", () => socketRegister());

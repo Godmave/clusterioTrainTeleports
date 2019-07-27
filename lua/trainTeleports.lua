@@ -64,6 +64,26 @@ remote.add_interface("trainTeleportsTrainStopTracking", {
 })
 
 
+local function averageOfDifference( t )
+    local count, sum, lastValue = 0,0,0
+
+    for k,v in pairs(t) do
+        if type(v) == 'number' then
+            if lastValue > 0 then
+                count = count + 1
+                sum = sum + (v - lastValue)
+            end
+            lastValue = v
+        end
+    end
+
+    if count == 0 then
+        return 0
+    end
+
+    return math.floor((sum/count) + 0.5)
+end
+
 
 remote.remove_interface("trainTeleports");
 remote.add_interface("trainTeleports", {
@@ -73,6 +93,17 @@ remote.add_interface("trainTeleports", {
     end,
     init = function()
         trainStopTrackingApi.initAllTrainstopsAndZones()
+    end,
+    reportPassedSecond = function()
+        global.lastSecondTicks = global.lastSecondTicks or {}
+        table.insert(global.lastSecondTicks, game.tick)
+        if #global.lastSecondTicks > 5 then
+            table.remove(global.lastSecondTicks, 1)
+        end
+
+        if #global.lastSecondTicks > 1 then
+            guiApi.updateServerUPS(averageOfDifference(global.lastSecondTicks))
+        end
     end,
     json = function(jsonString)
         local data = game.json_to_table(jsonString)
