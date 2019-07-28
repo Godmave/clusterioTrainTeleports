@@ -696,7 +696,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     end
 
     for k, v in pairs(global.trainsToSpawn) do
-        if not (v.lastTry and v.lastTry > event.tick - TELEPORT_COOLDOWN_TICKS) then
+        if (not v.lastTry) or (v.lastTry and v.lastTry > event.tick - TELEPORT_COOLDOWN_TICKS) then
             v.lastTry = nil
             -- game.print("Trying to spawn train at: "..v.targetStation.backer_name)
             local targetState = trainStopTrackingApi.can_spawn_train(v.targetStation, #v.train)
