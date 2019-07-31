@@ -93,6 +93,11 @@ remote.add_interface("trainTeleports", {
     end,
     init = function()
         trainStopTrackingApi.initAllTrainstopsAndZones()
+        -- trainTrackingApi.initAllTrains()
+    end,
+    initAllTrains = function()
+        -- for when a node goes up or down, reinit trains
+        trainTrackingApi.initAllTrains()
     end,
     reportPassedSecond = function()
         global.lastSecondTicks = global.lastSecondTicks or {}
@@ -132,10 +137,15 @@ remote.add_interface("trainTeleports", {
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
+            return true
         elseif data.event == "instances" then
             global.servers = data.data
+        elseif data.event == "trains" then
+            global.trainsKnownToInstances = data.trainsKnownToInstances
+            global.trainStopTrains = data.trainStopTrains
         end
 
+        rcon.print(1)
     end,
     updateStopInSchedules = function(instanceId, oldName, name)
         if tostring(instanceId) ~= tostring(global.worldID) then

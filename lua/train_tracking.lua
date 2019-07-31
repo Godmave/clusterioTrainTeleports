@@ -1,8 +1,3 @@
---[[
-todo:
-- stops containing @ crash the server
-]]
-
 local sqrt = math.sqrt
 local abs = math.abs
 local pow = math.pow
@@ -504,12 +499,126 @@ end
 
 
 
+local function trainTeleportMeta(train)
+    local meta = {}
+    local hasRemoteStops = false
+
+    if not train.valid then
+        return
+    end
+
+    if not train.schedule then
+        return
+    end
+
+    if #train.schedule.records == 0 then
+        return
+    end
+
+
+    -- easy stuff first
+    meta.carriages = #train.carriages
+    meta.manual_mode = train.manual_mode
+    meta.current_target = train.schedule.records[train.schedule.current].station or "unknown"
+
+    if train.has_path then
+        local path = train.path
+        meta.path = {
+            size = path.size,
+            current = path.current
+        }
+    end
+
+    -- find out if this train has remote stops and on which nodes
+    meta.servers = {}
+    for _, record in ipairs(train.schedule.records) do
+        -- record isn't temporary and has a station set
+        if not record.temporary and record.station then
+            -- even a teleport station
+            if string.find(record.station, '<CT[0-9%+]*> ',1) then
+                local serverName = record.station:match("@ (.*)$")
+                local stopName = record.station:match("^(<CT?[0-9%+]*> .*) @")
+
+                if serverName then
+                    local serverId = trainStopTrackingApi.lookupNameToId(serverName)
+                    if serverId and stopName then
+                        meta.servers[serverId] = meta.servers[serverId] or {}
+                        meta.servers[serverId][stopName] = 1
+                        hasRemoteStops = true
+                    end
+                end
+            end
+        end
+    end
+
+    if not hasRemoteStops then
+        return
+    end
+
+    return meta
+end
+
+local function initAllTrains()
+    global.teleport_trains = {}
+    global.trainStopTrains = {}
+    global.trainsKnownToInstances = {}
+    global.remote_trains = global.remote_trains or {}
+
+    local all_trains = game.surfaces[1].get_trains()
+    for _, train in ipairs(all_trains) do
+        local trainTeleportMeta = trainTeleportMeta(train)
+        if trainTeleportMeta then
+            global.teleport_trains[train.id] = trainTeleportMeta
+        end
+    end
+
+    -- report configured zones
+    local package = {
+        event = "trains",
+        worldId = global.worldID,
+        trains = global.teleport_trains
+    }
+
+    log(serpent.block(package))
+
+    game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
+end
+
+
+local function updateRemoteTrainMeta(train)
+    local trainTeleportMeta = trainTeleportMeta(train)
+
+    if trainTeleportMeta then
+        local package = {
+            event = "updateTrain",
+            worldId = global.worldID,
+            trainId = train.id,
+            train = trainTeleportMeta
+        }
+        game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
+    end
+end
+
+local function removeRemoteTrainMeta(trainId)
+    global.teleport_trains[trainId] = nil
+
+    local package = {
+        event = "removeTrain",
+        worldId = global.worldID,
+        trainId = trainId
+    }
+    game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
+end
+
+
 script.on_event(defines.events.on_tick, function(event)
 
     if #global.trainsToDestroy > 0 then
 
         for k, v in pairs(global.trainsToDestroy) do
             if v.valid then
+                removeRemoteTrainMeta(v.id)
+
                 unalert_all_players(v.carriages[1])
                 for _, carriage in pairs(v.carriages) do
                     carriage.destroy()
@@ -847,20 +956,36 @@ script.on_event(defines.events.on_train_changed_state, function (event)
 
             end
         elseif oldTrainState == defines.train_state.wait_station then
-                for i,v in pairs(global.trainsToSend) do
-                    if v and v.train == entity then
-                        table.remove(global.trainsToSend, i)
-                    end
+            for i,v in pairs(global.trainsToSend) do
+                if v and v.train == entity then
+                    table.remove(global.trainsToSend, i)
                 end
+            end
         end
-	end
+    end
+
+    updateRemoteTrainMeta(event.train)
 end)
 
+script.on_event(defines.events.on_train_schedule_changed, function(event)
+    if not (event.train and event.train.valid) then return end
 
+    updateRemoteTrainMeta(event.train)
+end)
 
+script.on_event(defines.events.on_train_schedule_changed, function(event)
+    if event.old_train_id_1 ~= nil then
+        removeRemoteTrainMeta(event.old_train_id_1)
+    end
+    if event.old_train_id_2 ~= nil then
+        removeRemoteTrainMeta(event.old_train_id_2)
+    end
+
+    updateRemoteTrainMeta(event.train)
+end)
 
 local trainTrackingApi = setmetatable({
-    -- nothing
+    initAllTrains = initAllTrains
 },{
     __index = function(t, k)
         log({'trainTrackingApi.invalid-access', k}, nil, 3)
