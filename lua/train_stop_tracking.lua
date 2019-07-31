@@ -284,7 +284,7 @@ end
 
 local function lookupIdToServerName(id)
     if id ~= nil and id ~= 0 then
-        return global.lookUpTableIdToServer[tonumber(id)].name
+        return global.lookUpTableIdToServer[tonumber(id)] and global.lookUpTableIdToServer[tonumber(id)].name or "unknown"
     elseif global.worldID ~= nil and global.lookUpTableIdToServer[tonumber(global.worldID)] ~= nil then
         -- if no id is given return my own
         return global.lookUpTableIdToServer[tonumber(global.worldID)].name
@@ -335,6 +335,10 @@ local function can_spawn_train(station, carriage_count)
     local rail = station.connected_rail
     if not rail then
         return CAN_SPAWN_RESULT.no_adjacent_rail
+    end
+
+    if rail.get_rail_segment_length() < (carriage_count*7) then
+        return CAN_SPAWN_RESULT.not_enough_track
     end
 
     if rail.trains_in_block > 0 then

@@ -28,16 +28,6 @@ local function gui_create(self)
         column_count = 1
     }
 
-    local maintable = root.add{
-        type = "table",
-        caption = "Clusterio Trainstops",
-        column_count = 3
-    }
-    maintable.vertical_centering = false
-    maintable.style.horizontal_spacing = 0
-    maintable.style.vertical_spacing = 0
-
-
     self.root = root
     root.style.horizontal_spacing = 0
     root.style.vertical_spacing = 0
@@ -48,6 +38,23 @@ local function gui_create(self)
     self.infoPane = root.add{type = 'frame', name = 'clusterio-trainteleport-infopane', direction = 'vertical', caption = "Info"}
     self.infoPane.visible = false
 end
+
+local function gui_trainstop_create(self)
+    local root = mod_gui.get_frame_flow(self.player).add{
+        type = "table",
+        column_count = 1
+    }
+
+    self.root = root
+    root.style.horizontal_spacing = 0
+    root.style.vertical_spacing = 0
+
+    self.remotetrains = root.add{type = 'frame', name = 'clusterio-trainteleport-remotetrains', direction = 'vertical', caption = "Remote Trains"}
+end
+
+
+
+
 local function gui_destroy(self)
     if self == nil then
         return
@@ -470,6 +477,27 @@ local function gui_populate(self, remote_data)
 end
 
 
+local function gui_trainstop_populate(self, remote_data)
+    if not remote_data then return end
+
+    self.remotetrains.add{type="label", caption=table_size(remote_data)}
+
+    local table = self.remotetrains.add{type="table", column_count=3}
+    for instanceId, trains in pairs(remote_data)  do
+        local instanceName = trainStopTrackingApi.lookupIdToServerName(instanceId)
+        log(instanceName)
+        log(instanceId)
+        for trainId, trainId in pairs(trains) do
+            log(serpent.block(global.trainsKnownToInstances))
+            log(trainId)
+            log(global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target)
+            table.add{type="label", caption=instanceName};
+            table.add{type="label", caption=trainId};
+            table.add{type="label", caption=global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target};
+        end
+    end
+
+end
 
 
 
@@ -536,6 +564,8 @@ end
 local function zoneAvailable(serverName, zoneName)
     local serverId = trainStopTrackingApi.lookupNameToId(serverName)
     local serverZones = global.zones[tostring(serverId)]
+
+    if not serverZones then return end
 
     for __, zone in pairs(serverZones) do
         if zone.name == zoneName then
@@ -733,7 +763,7 @@ local function gui_serverconnect(player_index)
     for _, server in pairs(global.servers) do
         if tostring(_) == tostring(global.worldID) then
         else
-            local column = 1 + (serverIndex % servercolumcount)
+            local column = 1 + ((serverIndex-1) % servercolumcount)
             local row = math.ceil(serverIndex / servercolumcount)
 
             if not global.serverconnect[player_index].servermap[column] then
@@ -899,33 +929,62 @@ end)
 script.on_event(defines.events.on_gui_opened, function(event)
     local player = game.players[event.player_index]
     local entity = event.entity
-    if not entity or entity.type ~= "locomotive" then
+    if not entity  then
         return
     end
     if tonumber(global.worldID) == 0 or global.lookUpTableIdToServer == nil or global.lookUpTableIdToServer[tonumber(global.worldID)] == nil or global.zones == nil then
         return
     end
 
-    local train = entity.train
+    if entity.type == "locomotive" then
 
-    if global.custom_locomotive_gui == nil then
-        global.custom_locomotive_gui = {}
+        local train = entity.train
+
+        if global.custom_locomotive_gui == nil then
+            global.custom_locomotive_gui = {}
+        end
+
+        local state = global.custom_locomotive_gui[player.index]
+        if state ~= nil then
+            gui_destroy(state)
+        end
+        state = {}
+        global.custom_locomotive_gui[player.index] = state
+
+        state.player = player
+        state.train = train
+        state.trainId = train.id
+        state.entity = entity
+
+        gui_create(state)
+        gui_populate(state, global.trainstopsData)
+    elseif entity.type == "train-stop" then
+        if not global.trainStopTrains then
+            return
+        end
+
+        local trainStop = entity
+
+        if global.custom_trainstop_gui == nil then
+            global.custom_trainstop_gui = {}
+        end
+
+        local state = global.custom_trainstop_gui[player.index]
+        if state ~= nil then
+            gui_destroy(state)
+        end
+        state = {}
+        global.custom_trainstop_gui[player.index] = state
+
+        state.player = player
+        state.entity = entity
+
+        gui_trainstop_create(state)
+        log(serpent.block( global.trainStopTrains))
+        log(serpent.block( entity.backer_name ))
+        log(serpent.block( global.trainStopTrains[entity.backer_name] ))
+        gui_trainstop_populate(state, global.trainStopTrains[entity.backer_name])
     end
-
-    local state = global.custom_locomotive_gui[player.index]
-    if state ~= nil then
-        gui_destroy(state)
-    end
-    state = {}
-    global.custom_locomotive_gui[player.index] = state
-
-    state.player = player
-    state.train = train
-    state.trainId = train.id
-    state.entity = entity
-
-    gui_create(state)
-    gui_populate(state, global.trainstopsData)
 end)
 
 script.__on_configuration_changed = function()
@@ -1005,14 +1064,24 @@ script.on_event(defines.events.on_gui_closed, function (event)
         return
     end
 
-    if not entity or entity.type ~= "locomotive" then
+    if not entity then
         return
     end
 
-    if global.custom_locomotive_gui then
-        local state = global.custom_locomotive_gui[player_index]
-        global.custom_locomotive_gui[player_index] = nil
-        gui_destroy(state)
+    if entity.type == "locomotive" then
+        if global.custom_locomotive_gui then
+            local state = global.custom_locomotive_gui[player_index]
+            global.custom_locomotive_gui[player_index] = nil
+            gui_destroy(state)
+        end
+    end
+
+    if entity.type == "train-stop" then
+        if global.custom_trainstop_gui then
+            local state = global.custom_trainstop_gui[player_index]
+            global.custom_trainstop_gui[player_index] = nil
+            gui_destroy(state)
+        end
     end
 end)
 
@@ -1439,6 +1508,10 @@ function CreateZone(name, topLeftX, topLeftY, width, height, zoneIndex, drawZone
 
     if(drawZoneBorders) then
         trainStopTrackingApi.drawZoneBorders(zoneIndex)
+    end
+
+    for _, trainstop in pairs(allAffectedStops) do
+        trainStopTrackingApi.updateTrainstop(trainstop)
     end
 
     local package = {
