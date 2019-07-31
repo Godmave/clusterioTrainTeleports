@@ -234,8 +234,10 @@ local function serialize_train_schedule(train)
     local myInstanceName = trainStopTrackingApi.lookupIdToServerName(0)
     for _, record in pairs(schedule.records) do
         -- add the @ instanceName to local stations
-        if not record.station:match("@ (.*)$") then
-            record.station = record.station .. " @ " .. myInstanceName
+        if record.station then
+            if not record.station:match("@ (.*)$") then
+                record.station = record.station .. " @ " .. myInstanceName
+            end
         end
     end
     return schedule
@@ -493,8 +495,10 @@ local function deserialize_train_schedule(schedule, oppositeStations)
     local myInstanceName = trainStopTrackingApi.lookupIdToServerName(0)
     for _, record in ipairs(schedule.records) do
         -- remove the @ instanceName from local stations
-        if record.station:match("@ " .. escape_pattern(myInstanceName)) then
-            record.station = record.station:match("^(<CT?[0-9%+]*> .*) @")
+        if record.station then
+            if record.station:match("@ " .. escape_pattern(myInstanceName)) then
+                record.station = record.station:match("^(<CT?[0-9%+]*> .*) @")
+            end
         end
     end
 

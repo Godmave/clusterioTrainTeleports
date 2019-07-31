@@ -14,10 +14,12 @@ module.exports = class remoteCommands {
         this.trainstopDB = {};
         this.zonesDB = {};
 
-		let socketRegister = () => {
-			this.socket.emit("registerTrainTeleporter", {
-				instanceID: this.config.unique,
-			});
+        this.upsInterval = null;
+
+        let socketRegister = () => {
+            this.socket.emit("registerTrainTeleporter", {
+                instanceID: this.config.unique,
+            });
 
             // no need for the setTimeout if the remote function is not just getting added via hotpatch
             let initInterval = setInterval(async () => {
@@ -28,11 +30,13 @@ module.exports = class remoteCommands {
                 }
             }, 5000);
 
-            setInterval(async () => {
-                this.messageInterface('/silent-command remote.call("trainTeleports", "reportPassedSecond")');
-            }, 1000);
+            if(!this.upsInterval) {
+                this.upsInterval = setInterval(async () => {
+                    this.messageInterface('/silent-command remote.call("trainTeleports", "reportPassedSecond")');
+                }, 1000);
+            }
         };
-		
+
 		this.socket.on("hello", () => socketRegister());
 
 		// initialize mod with Hotpatch
