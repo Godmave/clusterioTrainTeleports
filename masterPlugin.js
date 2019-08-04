@@ -381,16 +381,12 @@ class masterPlugin {
                     if(this.trainStopTrains[remoteInstanceId][stopName][instanceId][trainId]) {
                         delete this.trainStopTrains[remoteInstanceId][stopName][instanceId][trainId];
 
-                        console.log("L1:" + Object.keys(this.trainStopTrains[remoteInstanceId][stopName][instanceId]).length);
-                        if(Object.keys(this.trainStopTrains[remoteInstanceId][stopName][instanceId]).length == 0) {
+                            if(Object.keys(this.trainStopTrains[remoteInstanceId][stopName][instanceId]).length == 0) {
                             delete this.trainStopTrains[remoteInstanceId][stopName][instanceId]
                         }
-                        console.log("L2:" + Object.keys(this.trainStopTrains[remoteInstanceId][stopName]).length);
                         if(Object.keys(this.trainStopTrains[remoteInstanceId][stopName]).length == 0) {
                             delete this.trainStopTrains[remoteInstanceId][stopName]
                         }
-
-                        console.log(this.trainStopTrains[remoteInstanceId]);
                         stops.push(stopName);
                     }
                 }
