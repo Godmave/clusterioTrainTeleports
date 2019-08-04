@@ -700,6 +700,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
         return
     end
 
+    global.teleport_trains = global.teleport_trains or {}
     for k, v in pairs(global.teleport_trains) do
         if not v.valid then
             removeRemoteTrainMeta(k)
