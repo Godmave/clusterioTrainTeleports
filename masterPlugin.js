@@ -40,13 +40,22 @@ class trainTeleporter{
             });
 
             this.socket.on("transaction", async data => {
-                console.log("GOT TRANSACTION ANSWER: ", data);
+                let transaction = data.transactionId.split(":");
+                let instanceId = transaction[0];
+                let trainId = transaction[1];
+
+                if(this.master.clients[instanceId]) {
+                    this.master.clients[instanceId].socket.emit("transaction", {
+                        event: "trainReceived",
+                        trainId: trainId
+                    });
+                }
             });
 
             this.socket.on("trainteleport_json", async data => {
                 if(data.event === 'teleportTrain') {
                 	// got a train to deliver to one lucky node
-                    data.transactionId = data.localTrainid;
+                    data.transactionId = this.instanceID + ":" + data.localTrainid;
                     this.teleportTrain(data);
                 } else if(data.event === 'zones') {
                 	// got zones. store and tell the cluster
@@ -80,15 +89,15 @@ class trainTeleporter{
 
 
                 } else if(data.event === 'trains') {
-                    console.log(data);
+                    // console.log(data);
                     // got trains. store and tell the affected nodes
                     this.setTrains(data.trains)
                 } else if(data.event === 'updateTrain') {
-                    console.log(data);
+//                    console.log(data);
                     // train got updated. store and tell the affected nodes
                     this.updateTrain(data.trainId, data.train, data.oldTrainId1, data.oldTrainId2)
                 } else if(data.event === 'removeTrain') {
-                    console.log(data);
+//                    console.log(data);
                     // train got removed. remove and tell the affected nodes
                     this.removeTrain(data.trainId)
                 } else {
@@ -165,13 +174,13 @@ class trainTeleporter{
 	}
 
 	async setTrains(trains) {
-        this.master.setTrains(this.instanceID, trains);
+        await this.master.setTrains(this.instanceID, trains);
     }
     async updateTrain(trainId, train) {
-        this.master.updateTrain(this.instanceID, trainId, train);
+        await this.master.updateTrain(this.instanceID, trainId, train);
     }
     async removeTrain(trainId) {
-        this.master.removeTrain(this.instanceID, trainId);
+        await this.master.removeTrain(this.instanceID, trainId);
     }
 }
 
@@ -198,7 +207,6 @@ class masterPlugin {
         // this.getTrainstops();
 
 		this.io.on("connection", socket => {
-		    console.log("GOT TT CONNECTION")
 		    this.socket = socket;
 
 			socket.on("registerTrainTeleporter", data => {
@@ -230,14 +238,6 @@ class masterPlugin {
                             delete this.zonesDatabase[id];
                             this.propagateZones();
                         }
-
-
-                        console.log("Removing its remote trains TBD");
-
-
-
-
-                        break;
                     }
                 }
             });
@@ -283,7 +283,7 @@ class masterPlugin {
         }
     }
 
-	addTrain(instanceId, trainId, train) {
+	addTrain(instanceId, trainId, train, propagate) {
         for(let remoteInstanceId in train.servers) {
             if(!this.trainsKnownToInstances[remoteInstanceId]) {
                 this.trainsKnownToInstances[remoteInstanceId] = {};
@@ -294,7 +294,7 @@ class masterPlugin {
             this.trainsKnownToInstances[remoteInstanceId][instanceId][trainId] = train;
 
 
-
+            let stops = [];
             if(!this.trainStopTrains[remoteInstanceId]) {
                 this.trainStopTrains[remoteInstanceId] = {};
             }
@@ -307,6 +307,19 @@ class masterPlugin {
                 }
 
                 this.trainStopTrains[remoteInstanceId][stopName][instanceId][trainId] = trainId;
+                stops.push(stopName);
+            }
+
+            if(propagate) {
+                if(this.clients[remoteInstanceId]) {
+                    this.clients[remoteInstanceId].socket.emit("addRemoteTrain", {
+                        trainId: trainId,
+                        train: train,
+                        instanceId: instanceId,
+                        stops: stops
+                    });
+                }
+
             }
         }
     }
@@ -318,7 +331,7 @@ class masterPlugin {
 
         for (let trainId in trains) {
             let train = trains[trainId];
-            this.addTrain(instanceId, trainId, train);
+            this.addTrain(instanceId, trainId, train, false);
         }
 
         for(let remoteInstanceId in this.trainsKnownToInstances) {
@@ -343,7 +356,6 @@ class masterPlugin {
                 found = true;
 
                 if(this.clients[remoteInstanceId]) {
-                    console.log("train updating");
                     this.clients[remoteInstanceId].socket.emit("updateRemoteTrain", {
                         instanceId: instanceId,
                         trainId: trainId,
@@ -354,18 +366,7 @@ class masterPlugin {
         }
 
         if(!found) {
-            console.log("not found, adding!");
-            this.addTrain(instanceId, trainId, train);
-
-            // for now send the whole db, fix later
-            for(let remoteInstanceId in this.trainsKnownToInstances) {
-                if(this.clients[remoteInstanceId]) {
-                    this.clients[remoteInstanceId].socket.emit("trainDatabase", {
-                        trainsKnownToInstances: this.trainsKnownToInstances[remoteInstanceId],
-                        trainStopTrains: this.trainStopTrains[remoteInstanceId]
-                    });
-                }
-            }
+            this.addTrain(instanceId, trainId, train, true);
         }
     }
 
@@ -396,20 +397,11 @@ class masterPlugin {
                 delete this.trainsKnownToInstances[remoteInstanceId][instanceId][trainId];
 
                 if(this.clients[remoteInstanceId]) {
-                    console.log("train removing");
-
                     // for now send the whole db, fix later
                     this.clients[remoteInstanceId].socket.emit("trainDatabase", {
                         trainsKnownToInstances: this.trainsKnownToInstances[remoteInstanceId],
                         trainStopTrains: this.trainStopTrains[remoteInstanceId]
                     });
-
-                    console.log({
-                        trainsKnownToInstances: this.trainsKnownToInstances[remoteInstanceId],
-                        trainStopTrains: this.trainStopTrains[remoteInstanceId]
-                    });
-
-                    // this for later
 
                     this.clients[remoteInstanceId].socket.emit("removeRemoteTrain", {
                         instanceId: instanceId,

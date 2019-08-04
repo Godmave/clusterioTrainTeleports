@@ -1,9 +1,9 @@
 --[[
 todo:
-- custom trainstop gui
-- show distance to destination
 - remote train "map"
 ]]
+
+local insert = table.insert
 
 require("mod-gui")
 
@@ -41,13 +41,11 @@ end
 
 local function gui_trainstop_create(self)
     local root = mod_gui.get_frame_flow(self.player).add{
-        type = "table",
-        column_count = 1
+        type = "scroll-pane"
     }
+    root.style.maximal_height = 500
 
     self.root = root
-    root.style.horizontal_spacing = 0
-    root.style.vertical_spacing = 0
 
     self.remotetrains = root.add{type = 'frame', name = 'clusterio-trainteleport-remotetrains', direction = 'vertical', caption = "Remote Trains"}
 end
@@ -78,7 +76,7 @@ local function gui_generic_dropdown(data, key, name, selectedIndex)
 
     if data ~= nil and table_size(data) > 0 then
         for _, item in pairs(data) do
-            table.insert(options.items, item[key])
+            insert(options.items, item[key])
         end
     end
 
@@ -212,7 +210,7 @@ local function gui_serverdropdown(parent, self, selectedServer)
     for _, server in pairs(self.remote_data) do
         for __ in pairs(self.reachableStops) do
             if __ == server.name then
-                table.insert(reachableServers, server)
+                insert(reachableServers, server)
                 if server.name == selectedServer then
                     selectedServerIndex = #reachableServers
                 end
@@ -480,25 +478,97 @@ end
 local function gui_trainstop_populate(self, remote_data)
     if not remote_data then return end
 
-    self.remotetrains.add{type="label", caption=table_size(remote_data)}
+    global.trainPanes = global.trainPanes or {}
 
-    local table = self.remotetrains.add{type="table", column_count=3}
-    for instanceId, trains in pairs(remote_data)  do
-        local instanceName = trainStopTrackingApi.lookupIdToServerName(instanceId)
-        log(instanceName)
-        log(instanceId)
-        for trainId, trainId in pairs(trains) do
-            log(serpent.block(global.trainsKnownToInstances))
-            log(trainId)
-            log(global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target)
-            table.add{type="label", caption=instanceName};
-            table.add{type="label", caption=trainId};
-            table.add{type="label", caption=global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target};
-        end
+    local trainCount = 0
+    for instanceId, trains in pairs(remote_data) do
+        trainCount = trainCount + table_size(trains)
     end
 
+    self.remotetrains.clear()
+    self.remotetrains.add{type="label", caption="Number of trains on other nodes: " .. trainCount}
+    for instanceId, trains in pairs(remote_data) do
+        local instanceName = trainStopTrackingApi.lookupIdToServerName(instanceId)
+
+        -- todo: try for container here for better visuals
+        local instancePane = self.remotetrains.add{type="frame", caption=instanceName}
+        for trainId, trainId in pairs(trains) do
+            trainId = tostring(trainId)
+
+            local pane = self.remotetrains.add{type="frame", name="train-" .. trainId}
+
+            global.trainPanes[trainId] = global.trainPanes[trainId] or {}
+            insert(global.trainPanes[trainId], pane)
+
+            local table = pane.add{type="table", column_count=3}
+            table.style.width = 500
+            -- local c1 = table.add{type="label", caption=instanceName};
+            -- c1.style.width = 100
+            local c2 = table.add{type="label", caption=trainId};
+            c2.style.width = 50
+            local c3 = table.add{type="label", caption=global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target};
+            c3.style.width = 330
+
+            local train = global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)]
+            local flow = table.add{type="flow"}
+            flow.style.width = 120
+
+
+            if train.path then
+                local bar = flow.add{type="progressbar", value=(train.path.current / train.path.size)};
+                bar.style.width = 100
+            else
+                if train.manual_mode == true then
+                    flow.add{type="label", caption="In manual mode"}
+                else
+                    flow.add{type="label", caption="Waiting for condition"}
+                end
+            end
+        end
+    end
 end
 
+local function updateTrainstops(stop)
+    for _, state in pairs(global.trainStopStates[stop]) do
+        gui_trainstop_populate(state, global.trainStopTrains[stop])
+    end
+end
+
+local function gui_trainstop_updatetrain(trainId, train)
+    if not global.trainPanes then return end
+
+    trainId = tostring(trainId)
+
+    local trainPanes = global.trainPanes[trainId]
+    if not (trainPanes and #trainPanes>0) then
+        return
+    end
+
+    for _, pane in pairs(trainPanes) do
+        if pane.valid then
+            if train then
+                local table = pane.children[1]
+                table.children[2].caption = train.current_target
+                table.children[3].clear()
+                if train.path then
+                    local bar = table.children[3].add{type="progressbar", value=(train.path.current / train.path.size)};
+                    bar.style.width = 100
+                else
+                    if train.manual_mode == true then
+                        table.children[3].add{type="label", caption="In manual mode"}
+                    else
+                        table.children[3].add{type="label", caption="Waiting for condition"}
+                    end
+                end
+            else
+                pane.destroy()
+                global.trainPanes[trainId][_] = nil
+            end
+        else
+            global.trainPanes[trainId][_] = nil
+        end
+    end
+end
 
 
 -- todo: support surface selection if there are more than nauvis available
@@ -825,6 +895,120 @@ local function gui_zonemanager(player_index)
     -- global.zonemanager[player_index].stopsFrame = addTabAndPanel(global.zonemanager[player_index], "stops", "Stops")
 end
 
+local function checkForTrainStillValid(event)
+    if event.entity then
+        if event.entity.type == "locomotive" then
+        elseif event.entity.type == "cargo-wagon" then
+        elseif event.entity.type == "fluid-wagon" then
+        elseif event.entity.type == "artillery-wagon" then
+        else
+            return
+        end
+    end
+    if global.custom_locomotive_gui then
+        for k, state in pairs(global.custom_locomotive_gui) do
+            if state then
+                if state.entity ~= nil then
+                    if not state.entity.valid then
+                        global.custom_locomotive_gui[k] = nil
+                        gui_destroy(state)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function checkForTrainIdChange(event)
+    if global.custom_locomotive_gui then
+        for k, state in pairs(global.custom_locomotive_gui) do
+            if event.old_train_id_1 ~= nil and state.trainId and state.trainId == event.old_train_id_1 then
+                state.train = event.train
+                state.trainId = event.train.id
+            end
+            if event.old_train_id_2 ~= nil and state.trainId and state.trainId == event.old_train_id_2 then
+                state.train = event.train
+                state.trainId = event.train.id
+            end
+        end
+    end
+end
+
+local function checkbutton(e)
+    local player = game.players[e.player_index]
+
+    local anchorpoint = mod_gui.get_button_flow(player)
+    local button = anchorpoint["clusterio-trainteleport"]
+
+    if button then
+        button.destroy()
+        button = nil
+    end
+
+    -- for now only show this button to admins
+    if player.admin then
+        if not button then
+            button = anchorpoint.add{
+                type = "sprite-button",
+                name = "clusterio-trainteleport",
+                sprite = "utility/show_train_station_names_in_map_view",
+                style = mod_gui.button_style
+            }
+        end
+    end
+
+
+
+
+    button = anchorpoint["clusterio-serverconnect"]
+
+    if button then
+        button.destroy()
+        button = nil
+    end
+
+    if not button then
+        button = anchorpoint.add{
+            type = "sprite-button",
+            name = "clusterio-serverconnect",
+            sprite = "utility/surface_editor_icon",
+            style = mod_gui.button_style,
+            tooltip = ""
+        }
+    end
+end
+
+local function updateServerUPS(ups)
+    local instanceName = (global.servers and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName)
+    if not instanceName then
+        return
+    end
+
+    for _, player in pairs(game.connected_players ) do
+        local anchorpoint = mod_gui.get_button_flow(player)
+        local button = anchorpoint["clusterio-serverconnect"]
+
+        if button then
+            button.tooltip = 'You are on "' .. instanceName .. '" - Server-UPS: ' .. ups
+        end
+    end
+end
+
+local function on_train_schedule_changed(event)
+    local train = event.train
+    local player_index = event.player_index
+    if player_index then
+        if global.custom_locomotive_gui then
+            for _, state in pairs(global.custom_locomotive_gui) do
+                if state.train and state.train.valid and state.train.id == train.id then
+                    gui_trainstops(state.rightPane, state)
+                end
+            end
+        end
+
+    end
+
+end
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
     local player_index = event.player_index
@@ -923,9 +1107,6 @@ script.on_event(defines.events.on_gui_value_changed, function(event)
     game.print("on_gui_value_changed")
     log(serpent.block(event))
 end)
-
-
-
 script.on_event(defines.events.on_gui_opened, function(event)
     local player = game.players[event.player_index]
     local entity = event.entity
@@ -963,7 +1144,9 @@ script.on_event(defines.events.on_gui_opened, function(event)
             return
         end
 
-        local trainStop = entity
+        if not (global.trainStopTrains and global.trainStopTrains[entity.backer_name] and table_size(global.trainStopTrains[entity.backer_name])>0) then
+            return
+        end
 
         if global.custom_trainstop_gui == nil then
             global.custom_trainstop_gui = {}
@@ -978,82 +1161,16 @@ script.on_event(defines.events.on_gui_opened, function(event)
 
         state.player = player
         state.entity = entity
+        state.stopname = entity.backer_name
+
+        global.trainStopStates = global.trainStopStates or {}
+        global.trainStopStates[entity.backer_name] = global.trainStopStates[entity.backer_name] or {}
+        insert(global.trainStopStates[entity.backer_name], state)
 
         gui_trainstop_create(state)
-        log(serpent.block( global.trainStopTrains))
-        log(serpent.block( entity.backer_name ))
-        log(serpent.block( global.trainStopTrains[entity.backer_name] ))
         gui_trainstop_populate(state, global.trainStopTrains[entity.backer_name])
     end
 end)
-
-script.__on_configuration_changed = function()
-    return
-end
-
-
--- refresh the trainstop list when a player changes the schedule
-script.on_event(defines.events.on_train_schedule_changed, function(event)
-    local train = event.train
-    local player_index = event.player_index
-    if player_index then
-        if global.custom_locomotive_gui then
-            for _, state in pairs(global.custom_locomotive_gui) do
-                if state.train and state.train.valid and state.train.id == train.id then
-                    gui_trainstops(state.rightPane, state)
-                end
-            end
-        end
-
-    end
-
-end)
-
-
-local function checkForTrainStillValid(event)
-    if event.entity then
-        if event.entity.type == "locomotive" then
-        elseif event.entity.type == "cargo-wagon" then
-        elseif event.entity.type == "fluid-wagon" then
-        elseif event.entity.type == "artillery-wagon" then
-        else
-            return
-        end
-    end
-    if global.custom_locomotive_gui then
-        for k, state in pairs(global.custom_locomotive_gui) do
-            if state then
-                if state.entity ~= nil then
-                    if not state.entity.valid then
-                        global.custom_locomotive_gui[k] = nil
-                        gui_destroy(state)
-                    end
-                end
-            end
-        end
-    end
-end
-
-local function checkForTrainIdChange(event)
-    if global.custom_locomotive_gui then
-        for k, state in pairs(global.custom_locomotive_gui) do
-            if event.old_train_id_1 ~= nil and state.trainId and state.trainId == event.old_train_id_1 then
-                state.train = event.train
-                state.trainId = event.train.id
-            end
-            if event.old_train_id_2 ~= nil and state.trainId and state.trainId == event.old_train_id_2 then
-                state.train = event.train
-                state.trainId = event.train.id
-            end
-        end
-    end
-end
-
-script.on_event(defines.events.on_train_created, checkForTrainIdChange)
-script.on_event(defines.events.script_raised_destroy, checkForTrainStillValid)
-script.on_event(defines.events.on_player_mined_entity, checkForTrainStillValid)
-script.on_event(defines.events.on_robot_mined_entity, checkForTrainStillValid)
-
 script.on_event(defines.events.on_gui_closed, function (event)
     local player_index = event.player_index
     local entity = event.entity
@@ -1080,11 +1197,19 @@ script.on_event(defines.events.on_gui_closed, function (event)
         if global.custom_trainstop_gui then
             local state = global.custom_trainstop_gui[player_index]
             global.custom_trainstop_gui[player_index] = nil
+
+            if global.trainStopStates and state then
+                for _, thatState in pairs(global.trainStopStates[state.stopname]) do
+                    if global.trainStopStates[state.stopname][_].player == thatState.player then
+                        global.trainStopStates[state.stopname][_] = nil
+                    end
+                end
+            end
+
             gui_destroy(state)
         end
     end
 end)
-
 script.on_event(defines.events.on_gui_click, function (event)
     local element_name = event.element.name
 
@@ -1367,60 +1492,9 @@ script.on_event(defines.events.on_gui_click, function (event)
         end
     end
 end)
-
-
-local function checkbutton(e)
-    local player = game.players[e.player_index]
-
-    -- todo: maybe integrate with clusterio-mod after a rewrite of that ones gui
-    -- clusterio-main-config-gui-toggle-button
-
-    local anchorpoint = mod_gui.get_button_flow(player)
-    local button = anchorpoint["clusterio-trainteleport"]
-
-    if button then
-        button.destroy()
-        button = nil
-    end
-
-    -- for now only show this button to admins
-    if player.admin then
-        if not button then
-            button = anchorpoint.add{
-                type = "sprite-button",
-                name = "clusterio-trainteleport",
-                sprite = "utility/show_train_station_names_in_map_view",
-                style = mod_gui.button_style
-            }
-        end
-    end
-
-
-
-
-    button = anchorpoint["clusterio-serverconnect"]
-
-    if button then
-        button.destroy()
-        button = nil
-    end
-
-    if not button then
-        button = anchorpoint.add{
-            type = "sprite-button",
-            name = "clusterio-serverconnect",
-            sprite = "utility/surface_editor_icon",
-            style = mod_gui.button_style,
-            tooltip = ""
-        }
-    end
-end
-
 script.on_event(defines.events.on_player_joined_game, checkbutton)
 script.on_event(defines.events.on_player_promoted, checkbutton)
 script.on_event(defines.events.on_player_demoted, checkbutton)
-
-
 script.on_event(defines.events.on_player_removed, function (event)
     local player_index = event.player_index
 
@@ -1430,7 +1504,6 @@ script.on_event(defines.events.on_player_removed, function (event)
         gui_destroy(state)
     end
 end)
-
 script.on_event(defines.events.on_player_left_game, function (event)
     local player_index = event.player_index
 
@@ -1443,25 +1516,17 @@ end)
 
 
 
-local function updateServerUPS(ups)
-    local instanceName = (global.servers and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName)
-    if not instanceName then
-        return
-    end
 
-    for _, player in pairs(game.connected_players ) do
-        local anchorpoint = mod_gui.get_button_flow(player)
-        local button = anchorpoint["clusterio-serverconnect"]
-
-        if button then
-            button.tooltip = 'You are on "' .. instanceName .. '" - Server-UPS: ' .. ups
-        end
-    end
-end
 
 local guiApi = setmetatable({
     -- nothing so far
-    updateServerUPS = updateServerUPS
+    gui_trainstop_updatetrain = gui_trainstop_updatetrain,
+    updateTrainstops = updateTrainstops,
+    updateServerUPS = updateServerUPS,
+
+    checkForTrainIdChange = checkForTrainIdChange,
+    checkForTrainStillValid = checkForTrainStillValid,
+    on_train_schedule_changed = on_train_schedule_changed
 },{
     __index = function(t, k)
     end,

@@ -9,4 +9,5 @@ module.exports = {
 	description: "Clusterio plugin for teleporting trains between servers",
 	scriptOutputFileSubscription: "trainTeleports.txt",
 	masterPlugin: "masterPlugin.js",
-}
+    fileReadDelay: 0
+};

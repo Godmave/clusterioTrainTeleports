@@ -23,7 +23,6 @@ local function undrawZoneBorders(zoneId)
     -- right
     surface.destroy_decoratives{area={left_top = {zone.bottomright[1], zone.topleft[2]}, right_bottom = {zone.bottomright[1], zone.bottomright[2]}}}
 end
-
 local function drawZoneBorders(zoneId)
     local zone = global.config.zones[tonumber(zoneId)]
     local surface = game.surfaces[zone.surface or 'nauvis']
@@ -53,7 +52,6 @@ local function drawZoneBorders(zoneId)
 
     surface.create_decoratives{decoratives = decoratives}
 end
-
 local function is_teleport_station(entity)
     if not entity.valid
             or entity.type ~= "train-stop"
@@ -101,7 +99,6 @@ local function is_teleport_station(entity)
 
     return false
 end
-
 local function sanitize_stop_name(entity)
     local prefix = '<C>'
     local name = entity.backer_name
@@ -118,7 +115,6 @@ local function sanitize_stop_name(entity)
 
     entity.backer_name = prefix .. " " .. name
 end
-
 local function updateTrainstop(entity)
     if not global.shared_train_stops then
         global.shared_train_stops = {}
@@ -209,8 +205,6 @@ local function remove_train_stop(entity)
     local entity_position = entity.position
     game.write_file(fileName, "event:trainstop_removed|name:"..entity.backer_name.."|x:"..entity_position.x.."|y:"..entity_position.y.."|surface:"..entity.surface.name.."\n", true, 0)
 end
-
-
 local function rebuildInstanceLookup()
     local lookUpTableIdToServer = {}
     local lookUpTableNameToId = {}
@@ -229,8 +223,6 @@ local function rebuildInstanceLookup()
     global.lookUpTableNameToId = lookUpTableNameToId
     global.lookUpTableServerStations = lookUpTableServerStations
 end
-
-
 local function rebuildRemoteZonestops()
     global.remoteZoneStops = {}
     -- log(serpent.block(global.remoteStopZones))
@@ -246,8 +238,6 @@ local function rebuildRemoteZonestops()
         end
     end
 end
-
-
 local function initAllTrainstopsAndZones()
     global.shared_train_stops = {}
     global.zoneStops = {}
@@ -272,16 +262,12 @@ local function initAllTrainstopsAndZones()
 
     game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 end
-
 local function lookupNameToId(serverName)
     return global.lookUpTableNameToId[serverName]
 end
-
-
 local function lookupIdToServer(id)
     return global.lookUpTableIdToServer[tonumber(id)]
 end
-
 local function lookupIdToServerName(id)
     if id ~= nil and id ~= 0 then
         return global.lookUpTableIdToServer[tonumber(id)] and global.lookUpTableIdToServer[tonumber(id)].name or "unknown"
@@ -290,23 +276,6 @@ local function lookupIdToServerName(id)
         return global.lookUpTableIdToServer[tonumber(global.worldID)].name
     end
 end
-
-local function on_entity_built(entity, player_index)
-    if entity and entity.valid and entity.type == "train-stop" then
-
-        if player_index ~= nil then
-            if is_teleport_station(entity) then
-                game.players[player_index].print("[Clusterio] Train station built in teleportation range")
-            else
-                game.players[player_index].print("[Clusterio] Train station built outside teleportation range")
-            end
-        end
-        updateTrainstop(entity)
-
-    end
-end
-
-
 local function can_spawn_train(station, carriage_count)
     if not (station and station.valid) then
         return CAN_SPAWN_RESULT.no_station
@@ -364,7 +333,6 @@ local function can_spawn_train(station, carriage_count)
 
     return CAN_SPAWN_RESULT.ok
 end
-
 local function resolveStop(stopName)
     local serverName = ''
     if not string.find(stopName,"@", 1, true) then
@@ -376,7 +344,6 @@ local function resolveStop(stopName)
 
     return stopName, serverName
 end
-
 local function isStopAvailable(stopName)
     local stopName, serverName = resolveStop(stopName)
     local serverId = lookupNameToId(serverName)
@@ -400,6 +367,10 @@ end
 local function find_station(stationName, trainSize, ignoreThisStationEntity)
     local laststation,station = {},{}
     local nextBestStation, bestStation = nil, nil
+
+    if not stationName then
+        return station
+    end
 
     -- local lookup
     if not string.find(stationName,"@", 1, true) then
@@ -465,30 +436,25 @@ local function find_station(stationName, trainSize, ignoreThisStationEntity)
 end
 
 
+local function on_entity_built(entity, player_index)
+    if entity and entity.valid and entity.type == "train-stop" then
 
+        if player_index ~= nil then
+            if is_teleport_station(entity) then
+                game.players[player_index].print("[Clusterio] Train station built in teleportation range")
+            else
+                game.players[player_index].print("[Clusterio] Train station built outside teleportation range")
+            end
+        end
+        updateTrainstop(entity)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    end
+end
 local function on_entity_removed(entity)
     if entity and entity.valid and entity.type == "train-stop" then
         remove_train_stop(entity)
     end
 end
-
 local function on_entity_built_event(event)
     if not event then return end
     local entity = event.created_entity or event.entity
@@ -503,24 +469,19 @@ local function on_entity_mined_event(event)
         on_entity_removed(event.entity)
     end
 end
-
-script.on_event(defines.events.on_built_entity, on_entity_built_event)
-script.on_event(defines.events.on_robot_built_entity, on_entity_built_event)
-script.on_event(defines.events.script_raised_built, function (event)
+local function script_raised_built(event)
     if not event then return end
     local entity = event.created_entity or event.entity
     if type(entity) ~= "table" or type(entity.__self) ~= "userdata" or not entity.valid then return end
     on_entity_built(entity)
-end)
-script.on_event(defines.events.on_player_mined_entity, on_entity_mined_event)
-script.on_event(defines.events.on_robot_mined_entity, on_entity_mined_event)
-script.on_event(defines.events.script_raised_destroy, function (event)
+end
+local function script_raised_destroy(event)
     if not event then return end
     local entity = event.entity
     if type(entity) ~= "table" or type(entity.__self) ~= "userdata" or not entity.valid then return end
     on_entity_removed(entity)
-end)
-script.on_event(defines.events.on_entity_renamed, function (event)
+end
+local function on_entity_renamed(event)
     if not event then return end
     local entity = event.entity
 
@@ -529,7 +490,8 @@ script.on_event(defines.events.on_entity_renamed, function (event)
             updateTrainstop(event.entity)
         end
     end
-end)
+end
+
 
 
 local trainStopTrackingApi = setmetatable({
@@ -545,7 +507,15 @@ local trainStopTrackingApi = setmetatable({
     drawZoneBorders = drawZoneBorders,
     updateTrainstop = updateTrainstop,
     resolveStop = resolveStop,
-    rebuildRemoteZonestops = rebuildRemoteZonestops
+    rebuildRemoteZonestops = rebuildRemoteZonestops,
+
+
+    on_entity_built = on_entity_built,
+    on_entity_built_event = on_entity_built_event,
+    script_raised_built = script_raised_built,
+    on_entity_mined_event = on_entity_mined_event,
+    script_raised_destroy = script_raised_destroy,
+    on_entity_renamed = on_entity_renamed
 },{
     __index = function(t, k)
     end,

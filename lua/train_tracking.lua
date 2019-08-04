@@ -70,7 +70,6 @@ local function serialize_equipment_grid(grid)
         ys = ys,
     }
 end
-
 local function serialize_inventory(inventory)
     local filters
 
@@ -143,7 +142,6 @@ local function serialize_inventory(inventory)
         item_grids = item_grids,
     }
 end
-
 local function entity_distance(a, b)
     if a.position.x == b.position.x then
         return abs(a.position.y - b.position.y)
@@ -152,7 +150,6 @@ local function entity_distance(a, b)
     end
     return sqrt(pow(abs(a.position.x - b.position.x), 2) + pow(abs(a.position.y - b.position.y),2))
 end
-
 local function serialize_train(train)
     local station = train.station
     if not station then
@@ -220,7 +217,6 @@ local function serialize_train(train)
 
     return data
 end
-
 local function serialize_train_schedule(train)
     local schedule = train.schedule
     if schedule == nil then
@@ -237,7 +233,6 @@ local function serialize_train_schedule(train)
     end
     return schedule
 end
-
 
 local function deserialize_grid(grid, data)
     grid.clear()
@@ -258,7 +253,6 @@ local function deserialize_grid(grid, data)
         end
     end
 end
-
 local function deserialize_inventory(inventory, data)
     local item_names, item_counts, item_durabilities,
     item_ammos, item_exports, item_labels, item_grids
@@ -304,7 +298,6 @@ local function deserialize_inventory(inventory, data)
         end
     end
 end
-
 local function deserialize_train(station, data, oppositeStations, schedule)
     local rotation
     if bit32.band(station.direction, 2) == 0 then
@@ -477,11 +470,9 @@ local function deserialize_train(station, data, oppositeStations, schedule)
         return created_entities[1].train
     end
 end
-
 local function escape_pattern(text)
     return text:gsub("([^%w])", "%%%1")
 end
-
 local function deserialize_train_schedule(schedule, oppositeStations)
     if schedule == nil then
         return
@@ -500,8 +491,6 @@ local function deserialize_train_schedule(schedule, oppositeStations)
     schedule.current = (schedule.current + (oppositeStations and 1 or 0)) % #schedule.records + 1
     return schedule
 end
-
-
 
 local function trainTeleportMeta(train)
     local meta = {}
@@ -561,18 +550,18 @@ local function trainTeleportMeta(train)
 
     return meta
 end
-
 local function initAllTrains()
     global.teleport_trains = {}
     global.trainStopTrains = {}
     global.trainsKnownToInstances = {}
-    global.remote_trains = global.remote_trains or {}
+    local remote_trains =  {}
 
     local all_trains = game.surfaces[1].get_trains()
     for _, train in ipairs(all_trains) do
         local trainTeleportMeta = trainTeleportMeta(train)
         if trainTeleportMeta then
-            global.teleport_trains[train.id] = trainTeleportMeta
+            remote_trains[train.id] = trainTeleportMeta
+            global.teleport_trains[train.id] = train
         end
     end
 
@@ -580,20 +569,27 @@ local function initAllTrains()
     local package = {
         event = "trains",
         worldId = global.worldID,
-        trains = global.teleport_trains
+        trains = remote_trains
     }
 
     log(serpent.block(package))
 
     game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 end
+local function updateRemoteTrainMeta(train, create)
+    if not (global.teleport_trains and global.teleport_trains[train.id]) then
+        if not create then
+            return
+        end
+    end
 
 
-local function updateRemoteTrainMeta(train)
     local trainTeleportMeta = trainTeleportMeta(train)
-
     if trainTeleportMeta then
+        global.teleport_trains[train.id] = train
+
         local package = {
+            tick = game.tick,
             event = "updateTrain",
             worldId = global.worldID,
             trainId = train.id,
@@ -602,18 +598,77 @@ local function updateRemoteTrainMeta(train)
         game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
     end
 end
-
 local function removeRemoteTrainMeta(trainId)
+    if not (global.teleport_trains and global.teleport_trains[trainId]) then
+        return false
+    end
+
     global.teleport_trains[trainId] = nil
 
     local package = {
+        tick = game.tick,
         event = "removeTrain",
         worldId = global.worldID,
         trainId = trainId
     }
     game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
+    return true
 end
 
+local function on_train_changed_state(event)
+    local entity = event.train
+    if type(entity) ~= "table" or not entity.valid then return end
+    local trainState = event.train.state
+    local oldTrainState = event.old_state
+
+    if entity.station == nil then
+
+    elseif string.find(entity.station.backer_name, '<CT',1,true) == 1 then
+        local schedule = entity.schedule
+        local current_schedule = schedule.records[schedule.current]
+        local wait_conditions = current_schedule.wait_conditions
+
+        if wait_conditions and #wait_conditions>0 and trainState == defines.train_state.wait_station then
+            if wait_conditions[1].type == "circuit"
+                    and wait_conditions[1].condition
+                    and wait_conditions[1].condition.first_signal and wait_conditions[1].condition.first_signal.name == "signal-T"
+                    and wait_conditions[1].condition.second_signal and wait_conditions[1].condition.second_signal.name == "signal-T"
+            then
+                insert(global.trainsToSend, 1, {
+                    train = entity,
+                    station = entity.station
+                })
+
+            end
+        elseif oldTrainState == defines.train_state.wait_station then
+            for i,v in pairs(global.trainsToSend) do
+                if v and v.train == entity then
+                    table.remove(global.trainsToSend, i)
+                end
+            end
+        end
+    end
+
+    updateRemoteTrainMeta(event.train)
+end
+local function on_train_schedule_changed(event)
+    if not (event.train and event.train.valid) then return end
+    updateRemoteTrainMeta(event.train, true)
+end
+local function on_entity_settings_pasted(event)
+    if not (event.train and event.train.valid) then return end
+    updateRemoteTrainMeta(event.train, true)
+end
+local function on_train_created(event)
+    if event.old_train_id_1 ~= nil then
+        removeRemoteTrainMeta(event.old_train_id_1)
+    end
+    if event.old_train_id_2 ~= nil then
+        removeRemoteTrainMeta(event.old_train_id_2)
+    end
+
+    updateRemoteTrainMeta(event.train, true)
+end
 
 script.on_event(defines.events.on_tick, function(event)
 
@@ -638,12 +693,29 @@ script.on_event(defines.events.on_tick, function(event)
 
     end
 end)
-
 script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     -- do not start until we are up and running
     if tonumber(global.worldID) == 0 or global.lookUpTableIdToServer == nil or global.lookUpTableIdToServer[tonumber(global.worldID)] == nil then
         -- game.write_file(fileName, "init\n", true, 0)
         return
+    end
+
+    for k, v in pairs(global.teleport_trains) do
+        if not v.valid then
+            removeRemoteTrainMeta(k)
+        end
+    end
+
+    global.trainsToResend = global.trainsToResend or {}
+    if global.trainsToResend and table_size(global.trainsToResend) then
+        for k, v in pairs(global.trainsToResend) do
+            if (game.tick - v.sentTick) > TELEPORT_COOLDOWN_TICKS then
+                game.print("Resending train " .. v.localTrainid)
+                v.sentTick = game.tick
+                global.trainsToResend[k] = v
+                game.write_file(fileName, game.table_to_json(v) .. "\n", true, 0)
+            end
+        end
     end
 
     for k, v in pairs(global.trainsToSend) do
@@ -674,7 +746,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     for _, zone in pairs(global.stopZones[train.station.unit_number]) do
                         if global.config.zones[zone].restrictions and #global.config.zones[zone].restrictions > 0 then
                             for _, restriction in pairs(global.config.zones[zone].restrictions) do
-                                table.insert(restrictions, restriction)
+                                insert(restrictions, restriction)
                             end
                         end
                     end
@@ -739,8 +811,8 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     else
                         global.stationQueue[targetStation.backer_name] = global.stationQueue[targetStation.backer_name] + 1
                     end
-                    table.insert(global.trainsToSpawn, {targetStation = targetStation, train = trainData, schedule = scheduleData, sendingStationDirection=train.station.direction })
-                    table.insert(global.trainsToDestroy, train)
+                    insert(global.trainsToSpawn, {targetStation = targetStation, train = trainData, schedule = scheduleData, sendingStationDirection=train.station.direction })
+                    insert(global.trainsToDestroy, train)
                     global.trainsToSend[k] = nil
 
                     -- teleportation to another instance (the hard one)
@@ -748,7 +820,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                     if targetStation.instanceId then
                         -- game.print("Sending train to remote station "..targetStation.stationName.." at "..targetStation.instanceName .."("..targetStation.instanceId..")")
                         targetStation['train'] = train;
-                        table.insert(global.trainsToSendRemote, targetStation)
+                        insert(global.trainsToSendRemote, targetStation)
 
                         global.trainsToSend[k] = nil
                     else
@@ -789,6 +861,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             local package = {
                 event = "teleportTrain",
                 localTrainid = v.train.id,
+                sentTick = game.tick,
                 sendingStationDirection = v.train.station.direction,
                 destinationInstanceId = v.instanceId,
                 destinationStationName = v.stationName,
@@ -799,11 +872,15 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 
             global.trainsToSendRemote[k] = nil
-            table.insert(global.trainsToDestroy, v.train)
+            insert(global.trainsToDestroy, v.train)
 
             -- todo:
             -- maybe buffer train in serialized form until we get the safe arrival message back
             -- this way we are able to resend it, or even recall it
+
+            global.trainsToResend[package.localTrainid] = package
+
+
             ::nextTrainToSendRemote::
         end
     end
@@ -849,6 +926,8 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
                         global.blockedStations[fullName] = nil
                         game.write_file(fileName, "event:trainstop_unblocked|name:"..fullName.."\n", true, 0)
                     end
+
+                    updateRemoteTrainMeta(created_train, true)
                 else
                     alert_all_players(v.targetStation,"Could not spawn train, player standing on the rails? Trying to redirect")
                     local newStation = trainStopTrackingApi.find_station(v.targetStation.backer_name, #v.train, v.targetStation)
@@ -934,62 +1013,15 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     global.stationQueue = cleanStationQueue
 end)
 
-script.on_event(defines.events.on_train_changed_state, function (event)
-	local entity = event.train
-    if type(entity) ~= "table" or not entity.valid then return end
-	local trainState = event.train.state
-	local oldTrainState = event.old_state
 
-    if entity.station == nil then
-
-    elseif string.find(entity.station.backer_name, '<CT',1,true) == 1 then
-        local schedule = entity.schedule
-        local current_schedule = schedule.records[schedule.current]
-        local wait_conditions = current_schedule.wait_conditions
-
-        if wait_conditions and #wait_conditions>0 and trainState == defines.train_state.wait_station then
-            if wait_conditions[1].type == "circuit"
-                    and wait_conditions[1].condition
-                    and wait_conditions[1].condition.first_signal and wait_conditions[1].condition.first_signal.name == "signal-T"
-                    and wait_conditions[1].condition.second_signal and wait_conditions[1].condition.second_signal.name == "signal-T"
-            then
-                table.insert(global.trainsToSend, 1, {
-                    train = entity,
-                    station = entity.station
-                })
-
-            end
-        elseif oldTrainState == defines.train_state.wait_station then
-            for i,v in pairs(global.trainsToSend) do
-                if v and v.train == entity then
-                    table.remove(global.trainsToSend, i)
-                end
-            end
-        end
-    end
-
-    updateRemoteTrainMeta(event.train)
-end)
-
-script.on_event(defines.events.on_train_schedule_changed, function(event)
-    if not (event.train and event.train.valid) then return end
-
-    updateRemoteTrainMeta(event.train)
-end)
-
-script.on_event(defines.events.on_train_schedule_changed, function(event)
-    if event.old_train_id_1 ~= nil then
-        removeRemoteTrainMeta(event.old_train_id_1)
-    end
-    if event.old_train_id_2 ~= nil then
-        removeRemoteTrainMeta(event.old_train_id_2)
-    end
-
-    updateRemoteTrainMeta(event.train)
-end)
 
 local trainTrackingApi = setmetatable({
-    initAllTrains = initAllTrains
+    initAllTrains = initAllTrains,
+
+    on_train_changed_state = on_train_changed_state,
+    on_train_schedule_changed = on_train_schedule_changed,
+    on_entity_settings_pasted = on_entity_settings_pasted,
+    on_train_created = on_train_created
 },{
     __index = function(t, k)
         log({'trainTrackingApi.invalid-access', k}, nil, 3)

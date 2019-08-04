@@ -22,6 +22,7 @@ local function initialize()
     global.zones = global.zones or {}
     global.stationQueue = global.stationQueue or {}
     global.servers = global.servers or {}
+    global.trainsToResend = global.trainsToResend or {}
 end
 
 script.on_load(function()
@@ -30,6 +31,37 @@ end)
 
 script.on_init(function()
     initialize()
+end)
+
+
+
+-- all events that are required in more than one place are handled here
+script.on_event(defines.events.on_built_entity, trainStopTrackingApi.on_entity_built_event)
+script.on_event(defines.events.on_robot_built_entity, trainStopTrackingApi.on_entity_built_event)
+script.on_event(defines.events.script_raised_built, trainStopTrackingApi.script_raised_built)
+script.on_event(defines.events.on_player_mined_entity, function(event)
+    guiApi.checkForTrainStillValid(event)
+    trainStopTrackingApi.on_entity_mined_event(event)
+end)
+script.on_event(defines.events.on_robot_mined_entity, function(event)
+    guiApi.checkForTrainStillValid(event)
+    trainStopTrackingApi.on_entity_mined_event(event)
+end)
+script.on_event(defines.events.script_raised_destroy, function(event)
+    guiApi.checkForTrainStillValid(event)
+    trainStopTrackingApi.script_raised_destroy(event)
+end)
+script.on_event(defines.events.on_entity_renamed, trainStopTrackingApi.on_entity_renamed)
+
+script.on_event(defines.events.on_train_changed_state, trainTrackingApi.on_train_changed_state)
+script.on_event(defines.events.on_train_schedule_changed, function(event)
+    guiApi.on_train_schedule_changed(event)
+    trainTrackingApi.on_train_schedule_changed(event)
+end)
+script.on_event(defines.events.on_entity_settings_pasted, trainTrackingApi.on_entity_settings_pasted)
+script.on_event(defines.events.on_train_created, function(event)
+    guiApi.checkForTrainIdChange(event)
+    trainTrackingApi.on_train_created(event)
 end)
 
 
@@ -143,6 +175,27 @@ remote.add_interface("trainTeleports", {
         elseif data.event == "trains" then
             global.trainsKnownToInstances = data.trainsKnownToInstances
             global.trainStopTrains = data.trainStopTrains
+        elseif data.event == "addRemoteTrain" then
+            global.trainsKnownToInstances[tostring(data.instanceId)][tostring(data.trainId)] = data.train
+            for _, stop in pairs(data.stops) do
+                global.trainStopTrains[stop][tostring(data.instanceId)][tostring(data.trainId)] = tostring(data.trainId)
+                guiApi.updateTrainstops(stop)
+            end
+            -- game.print("addTrain: " .. data.trainId)
+        elseif data.event == "updateRemoteTrain" then
+            global.trainsKnownToInstances[tostring(data.instanceId)][tostring(data.trainId)] = data.train
+            guiApi.gui_trainstop_updatetrain(data.trainId, data.train)
+            -- game.print("updateTrain:" .. data.trainId)
+        elseif data.event == "removeRemoteTrain" then
+            global.trainsKnownToInstances[tostring(data.instanceId)][tostring(data.trainId)] = nil
+            guiApi.gui_trainstop_updatetrain(data.trainId)
+            -- game.print("removeTrain")
+        elseif data.event == "trainReceived" then
+            -- game.print("Destination received train with trainID: " .. data.trainId)
+            if global.trainsToResend[tonumber(data.trainId)] then
+                -- game.print("Removed from to resend list")
+                global.trainsToResend[tonumber(data.trainId)] = nil
+            end
         end
 
         rcon.print(1)
