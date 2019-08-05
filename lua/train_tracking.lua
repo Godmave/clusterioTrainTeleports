@@ -710,8 +710,14 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     global.trainsToResend = global.trainsToResend or {}
     if global.trainsToResend and table_size(global.trainsToResend) then
         for k, v in pairs(global.trainsToResend) do
-            if (game.tick - v.sentTick) > TELEPORT_COOLDOWN_TICKS then
-                game.print("Resending train " .. v.localTrainid)
+            if not v.retry then
+                v.retry = 1
+            else
+                v.retry = v.retry + 1
+            end
+
+            if (game.tick - v.sentTick) > (TELEPORT_COOLDOWN_TICKS * v.retry) then
+                game.print("Resending train. Retry number " .. v.retry ..  ": " .. v.localTrainid)
                 v.sentTick = game.tick
                 global.trainsToResend[k] = v
                 game.write_file(fileName, game.table_to_json(v) .. "\n", true, 0)
