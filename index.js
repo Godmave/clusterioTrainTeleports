@@ -202,7 +202,7 @@ module.exports = class remoteCommands {
     }
 	async scriptOutput(data){
 		if(data !== null){
-			console.log(data);
+			//console.log(data);
 
 			if(data.substr(0,5) !== 'event') {
                 this.socket.emit("trainteleport_json", JSON.parse(data));
