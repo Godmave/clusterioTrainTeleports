@@ -572,8 +572,6 @@ local function initAllTrains()
         trains = remote_trains
     }
 
-    log(serpent.block(package))
-
     game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
 end
 local function updateRemoteTrainMeta(train, create)
