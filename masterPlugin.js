@@ -378,7 +378,7 @@ class masterPlugin {
 
                 let stops = [];
                 for (let stopName in this.trainStopTrains[remoteInstanceId]) {
-                    if(this.trainStopTrains[remoteInstanceId][stopName][instanceId][trainId]) {
+                    if(this.trainStopTrains[remoteInstanceId][stopName][instanceId] && this.trainStopTrains[remoteInstanceId][stopName][instanceId][trainId]) {
                         delete this.trainStopTrains[remoteInstanceId][stopName][instanceId][trainId];
 
                             if(Object.keys(this.trainStopTrains[remoteInstanceId][stopName][instanceId]).length == 0) {
