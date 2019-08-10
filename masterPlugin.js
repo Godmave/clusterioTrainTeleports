@@ -442,9 +442,6 @@ class masterPlugin {
         this.propagateZonesTimeout = setTimeout(() => {
 //console.log("ZONES:", JSON.stringify(this.zonesDatabase));
             this.io.sockets.emit("zonesDatabase", this.zonesDatabase);
-            this.io.sockets.emit("initAllTrains");
-
-
         }, 100);
     }
 

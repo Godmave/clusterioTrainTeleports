@@ -708,13 +708,16 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
     global.trainsToResend = global.trainsToResend or {}
     if global.trainsToResend and table_size(global.trainsToResend) then
         for k, v in pairs(global.trainsToResend) do
-            if not v.retry then
+            if not (v.retry and v.retry < 10) then
                 v.retry = 1
-            else
-                v.retry = v.retry + 1
             end
 
+
             if (game.tick - v.sentTick) > (TELEPORT_COOLDOWN_TICKS * v.retry) then
+                if v.retry < 10 then
+                    v.retry = v.retry + 1
+                end
+
                 game.print("Resending train. Retry number " .. v.retry ..  ": " .. v.localTrainid)
                 v.sentTick = game.tick
                 global.trainsToResend[k] = v
@@ -722,6 +725,7 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
             end
         end
     end
+
 
     for k, v in pairs(global.trainsToSend) do
         if v.train.valid and not v.train.manual_mode and v.train.station ~= nil and v.train.station.valid then
@@ -878,10 +882,6 @@ script.on_nth_tick(TELEPORT_WORK_INTERVAL, function(event)
 
             global.trainsToSendRemote[k] = nil
             insert(global.trainsToDestroy, v.train)
-
-            -- todo:
-            -- maybe buffer train in serialized form until we get the safe arrival message back
-            -- this way we are able to resend it, or even recall it
 
             global.trainsToResend[package.localTrainid] = package
 

@@ -476,7 +476,10 @@ end
 
 
 local function gui_trainstop_populate(self, remote_data)
-    if not remote_data then return end
+    if not remote_data then
+        self.remotetrains.visible = false
+        return
+    end
 
     global.trainPanes = global.trainPanes or {}
 
@@ -485,6 +488,13 @@ local function gui_trainstop_populate(self, remote_data)
         trainCount = trainCount + table_size(trains)
     end
 
+    if trainCount == 0 then
+        self.remotetrains.visible = false
+        return
+    end
+
+    self.remotetrains.visible = true
+
     self.remotetrains.clear()
     self.remotetrains.add{type="label", caption="Number of trains on other nodes: " .. trainCount}
     for instanceId, trains in pairs(remote_data) do
@@ -492,7 +502,7 @@ local function gui_trainstop_populate(self, remote_data)
 
         -- todo: try for container here for better visuals
         local instancePane = self.remotetrains.add{type="frame", caption=instanceName}
-        for trainId, trainId in pairs(trains) do
+        for trainId, _ in pairs(trains) do
             trainId = tostring(trainId)
 
             local pane = self.remotetrains.add{type="frame", name="train-" .. trainId}
@@ -502,26 +512,27 @@ local function gui_trainstop_populate(self, remote_data)
 
             local table = pane.add{type="table", column_count=3}
             table.style.width = 500
-            -- local c1 = table.add{type="label", caption=instanceName};
-            -- c1.style.width = 100
             local c2 = table.add{type="label", caption=trainId};
             c2.style.width = 50
-            local c3 = table.add{type="label", caption=global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target};
-            c3.style.width = 330
 
-            local train = global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)]
-            local flow = table.add{type="flow"}
-            flow.style.width = 120
+            if (global.trainsKnownToInstances[tostring(instanceId)] and global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)]) then
+                local c3 = table.add{type="label", caption=global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)].current_target};
+                c3.style.width = 330
+
+                local train = global.trainsKnownToInstances[tostring(instanceId)][tostring(trainId)]
+                local flow = table.add{type="flow"}
+                flow.style.width = 120
 
 
-            if train.path then
-                local bar = flow.add{type="progressbar", value=(train.path.current / train.path.size)};
-                bar.style.width = 100
-            else
-                if train.manual_mode == true then
-                    flow.add{type="label", caption="In manual mode"}
+                if train.path then
+                    local bar = flow.add{type="progressbar", value=(train.path.current / train.path.size)};
+                    bar.style.width = 100
                 else
-                    flow.add{type="label", caption="Waiting for condition"}
+                    if train.manual_mode == true then
+                        flow.add{type="label", caption="In manual mode"}
+                    else
+                        flow.add{type="label", caption="Waiting for condition"}
+                    end
                 end
             end
         end
@@ -798,64 +809,6 @@ local function gui_zonemanager_stops(player_index)
 
 end
 
-local function gui_serverconnect(player_index)
-    if table_size(global.servers) == 0 then
-        return
-    end
-
-    if global.serverconnect == nil then
-        global.serverconnect = {}
-    end
-
-    local player = game.players[player_index]
-
-    if global.serverconnect[player_index] then
-        global.serverconnect[player_index].gui.destroy()
-        global.serverconnect[player_index] = nil
-        player.opened = nil
-        return
-    end
-
-    if not (global.worldID and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName) then
-        return
-    end
-
-    global.serverconnect[player_index] = {}
-    global.serverconnect[player_index].gui = player.gui.top.add{type = 'frame', name = 'clusterio-serverconnect', direction = 'vertical', caption = 'You are on "' .. (global.servers and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName) .. '". Where to go now?'}
-    local gui = global.serverconnect[player_index].gui
-    player.opened = gui
-
-    global.serverconnect[player_index].servermap = {}
-    local servercolumcount = math.ceil(table_size(global.servers) / 10)
-
-    local columnServers = {}
-    local serverIndex = 1
-    for _, server in pairs(global.servers) do
-        if tostring(_) == tostring(global.worldID) then
-        else
-            local column = 1 + ((serverIndex-1) % servercolumcount)
-            local row = math.ceil(serverIndex / servercolumcount)
-
-            if not global.serverconnect[player_index].servermap[column] then
-                global.serverconnect[player_index].servermap[column] = {}
-            end
-            if not columnServers[column] then
-                columnServers[column] = {}
-            end
-
-            global.serverconnect[player_index].servermap[column][row] = server
-            columnServers[column][row] = {"", server.instanceName}
-            serverIndex = serverIndex + 1
-        end
-    end
-
-    local table = gui.add{type="table", column_count=servercolumcount}
-    for i=1, servercolumcount, 1 do
-        table.add{type="list-box", name="clusterio-servers-" .. i, items=columnServers[i]};
-    end
-end
-
-
 local function gui_zonemanager(player_index)
     if global.zones == nil then
         global.zones = {}
@@ -956,42 +909,6 @@ local function checkbutton(e)
             }
         end
     end
-
-
-
-
-    button = anchorpoint["clusterio-serverconnect"]
-
-    if button then
-        button.destroy()
-        button = nil
-    end
-
-    if not button then
-        button = anchorpoint.add{
-            type = "sprite-button",
-            name = "clusterio-serverconnect",
-            sprite = "utility/surface_editor_icon",
-            style = mod_gui.button_style,
-            tooltip = ""
-        }
-    end
-end
-
-local function updateServerUPS(ups)
-    local instanceName = (global.servers and global.servers[tostring(global.worldID)] and global.servers[tostring(global.worldID)].instanceName)
-    if not instanceName then
-        return
-    end
-
-    for _, player in pairs(game.connected_players ) do
-        local anchorpoint = mod_gui.get_button_flow(player)
-        local button = anchorpoint["clusterio-serverconnect"]
-
-        if button then
-            button.tooltip = 'You are on "' .. instanceName .. '" - Server-UPS: ' .. ups
-        end
-    end
 end
 
 local function on_train_schedule_changed(event)
@@ -1011,42 +928,26 @@ local function on_train_schedule_changed(event)
 end
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
+    if not (event.element and event.element.valid) then return end
+
     local player_index = event.player_index
     local element = event.element
     local element_name = element.name
 
-    if string.find(element_name, 'clusterio-servers-',1,true) then
-        local selected_index = element.selected_index
+    if string.find(element_name, 'clusterio-trainteleport-',1,true) then
+        element_name = string.gsub(element_name, '^clusterio%-trainteleport%-', "")
 
-        local column = string.gsub(element_name, '^clusterio%-servers%-', "")
+        if element_name == "server" then
+            local state = global.custom_locomotive_gui and global.custom_locomotive_gui[player_index]
+            if not state then
+                return
+            end
 
-        local server = global.serverconnect[player_index]
-                    and global.serverconnect[player_index].servermap
-                    and global.serverconnect[player_index].servermap[tonumber(column)]
-                    and global.serverconnect[player_index].servermap[tonumber(column)][selected_index]
+            local selectedServer = state.serverdropdown.items[state.serverdropdown.selected_index]
+            gui_serverstops(state.leftPane, state, selectedServer)
 
-        if server then
-            game.players[player_index].connect_to_server({address = server.publicIP .. ":" .. server.serverPort, name = server.instanceName})
-        end
-
-        gui_serverconnect(player_index)
-        return
-    end
-
-
-
-    element_name = string.gsub(element_name, '^clusterio%-trainteleport%-', "")
-
-    if element_name == "server" then
-        local state = global.custom_locomotive_gui and global.custom_locomotive_gui[event.player_index]
-        if not state then
             return
         end
-
-        local selectedServer = state.serverdropdown.items[state.serverdropdown.selected_index]
-        gui_serverstops(state.leftPane, state, selectedServer)
-
-        return
     end
 
     if string.find(element_name, 'restriction-',1,true) then
@@ -1091,22 +992,6 @@ script.on_event(defines.events.on_gui_selection_state_changed, function(event)
     end
 
 end)
-script.on_event(defines.events.on_gui_elem_changed, function(event)
-    game.print("on_gui_elem_changed")
-    log(serpent.block(event))
-end)
-script.on_event(defines.events.on_gui_checked_state_changed, function(event)
-    game.print("on_gui_checked_state_changed")
-    log(serpent.block(event))
-end)
-script.on_event(defines.events.on_gui_checked_state_changed, function(event)
-    game.print("on_gui_checked_state_changed")
-    log(serpent.block(event))
-end)
-script.on_event(defines.events.on_gui_value_changed, function(event)
-    game.print("on_gui_value_changed")
-    log(serpent.block(event))
-end)
 script.on_event(defines.events.on_gui_opened, function(event)
     local player = game.players[event.player_index]
     local entity = event.entity
@@ -1140,14 +1025,6 @@ script.on_event(defines.events.on_gui_opened, function(event)
         gui_create(state)
         gui_populate(state, global.trainstopsData)
     elseif entity.type == "train-stop" then
-        if not global.trainStopTrains then
-            return
-        end
-
-        if not (global.trainStopTrains and global.trainStopTrains[entity.backer_name] and table_size(global.trainStopTrains[entity.backer_name])>0) then
-            return
-        end
-
         if global.custom_trainstop_gui == nil then
             global.custom_trainstop_gui = {}
         end
@@ -1168,7 +1045,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
         insert(global.trainStopStates[entity.backer_name], state)
 
         gui_trainstop_create(state)
-        gui_trainstop_populate(state, global.trainStopTrains[entity.backer_name])
+        gui_trainstop_populate(state, global.trainStopTrains[entity.backer_name] or {})
     end
 end)
 script.on_event(defines.events.on_gui_closed, function (event)
@@ -1211,11 +1088,11 @@ script.on_event(defines.events.on_gui_closed, function (event)
     end
 end)
 script.on_event(defines.events.on_gui_click, function (event)
+    if not (event.element and event.element.valid) then return end
+
     local element_name = event.element.name
 
-    -- serverconnect top-button
-    if element_name == "clusterio-serverconnect" then
-        gui_serverconnect(event.player_index)
+    if element_name == "" then
         return
     end
 
@@ -1225,269 +1102,259 @@ script.on_event(defines.events.on_gui_click, function (event)
         return
     end
 
-    if string.find(element_name, 'clusterio-server-',1,true) then
-        element_name = string.gsub(element_name, '^clusterio%-server%-', "")
-        local server = global.servers[element_name]
-
-        if server then
-            game.players[event.player_index].connect_to_server({address = server.publicIP .. ":" .. server.serverPort, name = server.instanceName})
-            gui_serverconnect(event.player_index)
-        end
-
-        return
-    end
-
     -- zonemanager gui clicks
-    element_name = string.gsub(element_name, '^clusterio%-trainteleport%-', "")
-    if string.find(element_name, 'zonemanager-zone-',1,true) then
-        local key = string.gsub(element_name, 'zonemanager%-zone%-', "")
-        local fields = key:split('-')
-        local _ = fields[1] or "" --zoneIndex
-        local what = fields[2] or "" --guiClickType
+    if string.find(element_name, 'clusterio-trainteleport-',1,true) then
+        element_name = string.gsub(element_name, '^clusterio%-trainteleport%-', "")
+        if string.find(element_name, 'zonemanager-zone-',1,true) then
+            local key = string.gsub(element_name, 'zonemanager%-zone%-', "")
+            local fields = key:split('-')
+            local _ = fields[1] or "" --zoneIndex
+            local what = fields[2] or "" --guiClickType
 
-        if _ == "" or what == "" then
+            if _ == "" or what == "" then
+                return
+            end
+
+            local zone = global.zonemanager[event.player_index].zoneTable
+            local zoneConfig = global.config.zones[tonumber(_)] or {}
+
+            local allAffectedStops = {}
+            if global.zoneStops[tonumber(_)] ~= nil then
+                for unit_number, stop in pairs(global.zoneStops[tonumber(_)]) do
+                    allAffectedStops[unit_number] = stop
+                end
+            end
+
+            if what == "save" then
+                trainStopTrackingApi.undrawZoneBorders(_)
+                local prefix = 'clusterio-trainteleport-zonemanager-zone-'.._
+                local x,y,w,h
+                x = tonumber(zone[prefix.."-tlx"].text) or 0
+                y = tonumber(zone[prefix.."-tly"].text) or 0
+                w = tonumber(zone[prefix.."-w"].text) or 0
+                h = tonumber(zone[prefix.."-h"].text) or 0
+                local zoneName = zone[prefix.."-name"].text
+                -- create zone
+                CreateZone(zoneName, x, y, w, h, tonumber(_), true)
+                -- refresh gui
+                gui_zonemanager_zones(event.player_index)
+            elseif what == "remove" and global.config.zones[tonumber(_)] ~= nil then
+                trainStopTrackingApi.undrawZoneBorders(_)
+                global.config.zones[tonumber(_)] = nil
+
+                local package = {
+                    event = "removezone",
+                    worldId = global.worldID,
+                    zoneId = _
+                }
+                game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
+
+                gui_zonemanager_zones(event.player_index)
+            else
+                -- no stop update needed
+                allAffectedStops = {}
+            end
+
+            for _, trainstop in pairs(allAffectedStops) do
+                trainStopTrackingApi.updateTrainstop(trainstop)
+            end
+
+
             return
         end
 
-        local zone = global.zonemanager[event.player_index].zoneTable
-        local zoneConfig = global.config.zones[tonumber(_)] or {}
+        if string.find(element_name, 'zonemanager-tab-',1,true) then
+            local tab = string.gsub(element_name, 'zonemanager%-tab%-', "")
 
-        local allAffectedStops = {}
-        if global.zoneStops[tonumber(_)] ~= nil then
-            for unit_number, stop in pairs(global.zoneStops[tonumber(_)]) do
-                allAffectedStops[unit_number] = stop
+            if global.trainstopsData == nil or #global.trainstopsData == 0 or string.find(tab, "-selected", 1, true) then
+                return -- ignore clicks on already active tabs (for now)
+            else
+                local state = global.zonemanager[event.player_index]
+                if tab == "zones" then
+                    gui_zonemanager_zones(event.player_index)
+                elseif tab == "restrictions" then
+                    state.selectedZone = 1
+                    gui_zonemanager_restrictions(event.player_index)
+                elseif tab == "stops" then
+                    state.selectedZone = 1
+                    gui_zonemanager_stops(event.player_index)
+                end
             end
+
+            return
         end
 
-        if what == "save" then
-            trainStopTrackingApi.undrawZoneBorders(_)
-            local prefix = 'clusterio-trainteleport-zonemanager-zone-'.._
-            local x,y,w,h
-            x = tonumber(zone[prefix.."-tlx"].text) or 0
-            y = tonumber(zone[prefix.."-tly"].text) or 0
-            w = tonumber(zone[prefix.."-w"].text) or 0
-            h = tonumber(zone[prefix.."-h"].text) or 0
-            local zoneName = zone[prefix.."-name"].text
-            -- create zone
-            CreateZone(zoneName, x, y, w, h, tonumber(_), true)
-            -- refresh gui
-            gui_zonemanager_zones(event.player_index)
-        elseif what == "remove" and global.config.zones[tonumber(_)] ~= nil then
-            trainStopTrackingApi.undrawZoneBorders(_)
-            global.config.zones[tonumber(_)] = nil
+        if string.find(element_name, 'restriction-',1,true) then
+            local key = string.gsub(element_name, '^restriction%-', "")
+            local fields = key:split('-')
+            local _ = fields[1] or 1
+            local what = fields[2] or ""
+
+            local zoneIndex = global.zonemanager[event.player_index].selectedZone
+
+
+            if what == "save" then
+
+                local serverToSaveIndex = "clusterio-trainteleport-restriction-".._.."-server"
+                local restrictionsTable = global.zonemanager[event.player_index].restrictionsTable
+                local restrictionsTableItem = restrictionsTable[serverToSaveIndex]
+                local serverToSave = restrictionsTableItem.get_item(restrictionsTableItem.selected_index)
+                --game.write_file("trainTeleports.log", "Saving Zone Restriction: serverToSaveIndex = "..serverToSaveIndex.."\n", true, 0)
+                --game.write_file("trainTeleports.log", "Saving Zone Restriction: serverToSave = "..serverToSave.."\n", true, 0)
+
+
+                local zoneToSaveIndex = "clusterio-trainteleport-restriction-".._.."-zone"
+                --game.write_file("trainTeleports.log", "Saving Zone Restriction: zoneToSaveIndex = "..zoneToSaveIndex.."\n", true, 0)
+
+                -- save or add this restriction to the currently selected zone
+                global.config.zones[zoneIndex].restrictions[tonumber(_)] = {
+                    server = serverToSave,
+                    zone = nil
+                }
+                if restrictionsTable[zoneToSaveIndex].selected_index then
+                    global.config.zones[zoneIndex].restrictions[tonumber(_)]["zone"] = restrictionsTable[zoneToSaveIndex].get_item(restrictionsTable[zoneToSaveIndex].selected_index)
+                end
+            elseif what == "remove" then
+                -- remove this restriction from the currently selected zone
+                global.config.zones[zoneIndex].restrictions[tonumber(_)] = nil
+            else
+                return
+            end
 
             local package = {
-                event = "removezone",
+                event = "savezone",
                 worldId = global.worldID,
-                zoneId = _
+                zoneId = zoneIndex,
+                zone = global.config.zones[zoneIndex]
             }
             game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
-
-            gui_zonemanager_zones(event.player_index)
-        else
-            -- no stop update needed
-            allAffectedStops = {}
-        end
-
-        for _, trainstop in pairs(allAffectedStops) do
-            trainStopTrackingApi.updateTrainstop(trainstop)
+            gui_zonemanager_restrictions(event.player_index)
         end
 
 
-        return
-    end
 
-    if string.find(element_name, 'zonemanager-tab-',1,true) then
-        local tab = string.gsub(element_name, 'zonemanager%-tab%-', "")
+        -- custom loco gui checks
+        local state = global.custom_locomotive_gui and global.custom_locomotive_gui[event.player_index]
+        if state then
+            if string.find(element_name, 'serverstop-',1,true) then
+                local key = string.gsub(element_name, 'serverstop%-', "")
+                local station = state.serverstopdata[tonumber(key)] or "unknown"
 
-        if global.trainstopsData == nil or #global.trainstopsData == 0 or string.find(tab, "-selected", 1, true) then
-            return -- ignore clicks on already active tabs (for now)
-        else
-            local state = global.zonemanager[event.player_index]
-            if tab == "zones" then
-                gui_zonemanager_zones(event.player_index)
-            elseif tab == "restrictions" then
-                state.selectedZone = 1
-                gui_zonemanager_restrictions(event.player_index)
-            elseif tab == "stops" then
-                state.selectedZone = 1
-                gui_zonemanager_stops(event.player_index)
-            end
-        end
+                -- only copy if already selected, simulating a double click
+                if state.lastSelectedStop and station == state.lastSelectedStop then
+                    local selectedServer = state.serverdropdown.items[state.serverdropdown.selected_index]
+                    local currentServer = trainStopTrackingApi.lookupIdToServerName()
 
-        return
-    end
-
-    if string.find(element_name, 'restriction-',1,true) then
-        local key = string.gsub(element_name, '^restriction%-', "")
-        local fields = key:split('-')
-        local _ = fields[1] or 1
-        local what = fields[2] or ""
-
-        local zoneIndex = global.zonemanager[event.player_index].selectedZone
-
-
-        if what == "save" then
-
-            local serverToSaveIndex = "clusterio-trainteleport-restriction-".._.."-server"
-            local restrictionsTable = global.zonemanager[event.player_index].restrictionsTable
-            local restrictionsTableItem = restrictionsTable[serverToSaveIndex]
-            local serverToSave = restrictionsTableItem.get_item(restrictionsTableItem.selected_index)
-            --game.write_file("trainTeleports.log", "Saving Zone Restriction: serverToSaveIndex = "..serverToSaveIndex.."\n", true, 0)
-            --game.write_file("trainTeleports.log", "Saving Zone Restriction: serverToSave = "..serverToSave.."\n", true, 0)
-
-
-            local zoneToSaveIndex = "clusterio-trainteleport-restriction-".._.."-zone"
-            --game.write_file("trainTeleports.log", "Saving Zone Restriction: zoneToSaveIndex = "..zoneToSaveIndex.."\n", true, 0)
-
-            -- save or add this restriction to the currently selected zone
-            global.config.zones[zoneIndex].restrictions[tonumber(_)] = {
-                server = serverToSave,
-                zone = nil
-            }
-            if restrictionsTable[zoneToSaveIndex].selected_index then
-                global.config.zones[zoneIndex].restrictions[tonumber(_)]["zone"] = restrictionsTable[zoneToSaveIndex].get_item(restrictionsTable[zoneToSaveIndex].selected_index)
-            end
-        elseif what == "remove" then
-            -- remove this restriction from the currently selected zone
-            global.config.zones[zoneIndex].restrictions[tonumber(_)] = nil
-        else
-            return
-        end
-
-        local package = {
-            event = "savezone",
-            worldId = global.worldID,
-            zoneId = zoneIndex,
-            zone = global.config.zones[zoneIndex]
-        }
-        game.write_file(fileName, game.table_to_json(package) .. "\n", true, 0)
-        gui_zonemanager_restrictions(event.player_index)
-    end
-
-
-
-    -- custom loco gui checks
-    local state = global.custom_locomotive_gui and global.custom_locomotive_gui[event.player_index]
-    if state then
-        if string.find(element_name, 'serverstop-',1,true) then
-            local key = string.gsub(element_name, 'serverstop%-', "")
-            local station = state.serverstopdata[tonumber(key)] or "unknown"
-
-            -- only copy if already selected, simulating a double click
-            if state.lastSelectedStop and station == state.lastSelectedStop then
-                local selectedServer = state.serverdropdown.items[state.serverdropdown.selected_index]
-                local currentServer = trainStopTrackingApi.lookupIdToServerName()
-
-                if selectedServer ~= currentServer then
-                    station = station .. " @ " .. selectedServer
-                end
-
-                gui_trainstops_add(state, station, #state.trainstopdata + 1)
-
-                local schedule = state.train and state.train.valid and state.train.schedule
-                if schedule == nil then
-                    schedule = {
-                        current = 1,
-                        records = {}
-                    }
-                end
-
-                -- only add if both stops are teleport stops and reachable
-                local override_wait_condition
-                if schedule.records and state.lastSelectedScheduleStop and schedule.records[state.lastSelectedScheduleStop] then
-                    local lastStop = schedule.records[state.lastSelectedScheduleStop].station
-                    -- log("going from: " .. lastStop .. " to: " .. station)
-                    if lastStop then
-
-                        local lastStopServerName
-                        if not string.find(lastStop,"@", 1, true) then
-                            lastStopServerName = currentServer
-                        else
-                            lastStopServerName = lastStop:match("@ (.*)$")
-                        end
-
-                        if string.find(lastStop, '<CT',1,true)
-                                and string.find(station, '<CT',1,true)
-                                and lastStopServerName ~= selectedServer
-                        then
-                            override_wait_condition = true
-                        end
-
+                    if selectedServer ~= currentServer then
+                        station = station .. " @ " .. selectedServer
                     end
-                end
 
-                if override_wait_condition then
-                    override_wait_condition = {
-                        type = "circuit",
-                        compare_type = "or",
-                        condition = {
-                            comparator = "=",
-                            first_signal = {type="virtual", name="signal-T"},
-                            second_signal = {type="virtual", name="signal-T"}
+                    gui_trainstops_add(state, station, #state.trainstopdata + 1)
+
+                    local schedule = state.train and state.train.valid and state.train.schedule
+                    if schedule == nil then
+                        schedule = {
+                            current = 1,
+                            records = {}
                         }
-                    }
-                end
+                    end
 
-                if state.lastSelectedScheduleStop and state.lastSelectedScheduleStop < #schedule.records then
+                    -- only add if both stops are teleport stops and reachable
+                    local override_wait_condition
+                    if schedule.records and state.lastSelectedScheduleStop and schedule.records[state.lastSelectedScheduleStop] then
+                        local lastStop = schedule.records[state.lastSelectedScheduleStop].station
+                        -- log("going from: " .. lastStop .. " to: " .. station)
+                        if lastStop then
 
-                    local records = {}
-                    for _, record in pairs(schedule.records) do
-                        records[#records+1] = record
-
-                        if _ == state.lastSelectedScheduleStop then
-                            if override_wait_condition then
-                                records[#records]['wait_conditions'] = { override_wait_condition }
+                            local lastStopServerName
+                            if not string.find(lastStop,"@", 1, true) then
+                                lastStopServerName = currentServer
+                            else
+                                lastStopServerName = lastStop:match("@ (.*)$")
                             end
 
-                            records[#records+1] = {
-                                station = station,
-                                wait_conditions = {}
-                            }
+                            if string.find(lastStop, '<CT',1,true)
+                                    and string.find(station, '<CT',1,true)
+                                    and lastStopServerName ~= selectedServer
+                            then
+                                override_wait_condition = true
+                            end
+
                         end
                     end
 
-                    state.lastSelectedScheduleStop = state.lastSelectedScheduleStop + 1
-
-                    schedule.records = records
-                else
-                    if #schedule.records > 0 and override_wait_condition then
-                        schedule.records[#schedule.records]['wait_conditions'] = { override_wait_condition }
+                    if override_wait_condition then
+                        override_wait_condition = {
+                            type = "circuit",
+                            compare_type = "or",
+                            condition = {
+                                comparator = "=",
+                                first_signal = {type="virtual", name="signal-T"},
+                                second_signal = {type="virtual", name="signal-T"}
+                            }
+                        }
                     end
 
-                    schedule.records[#schedule.records + 1] = {
-                        station = station,
-                        wait_conditions = {}
-                    }
+                    if state.lastSelectedScheduleStop and state.lastSelectedScheduleStop < #schedule.records then
 
-                    state.lastSelectedScheduleStop = #schedule.records
-                end
-                if state.train and state.train.valid then
-                    state.train.schedule = schedule
-                    gui_trainstops(state.rightPane, state)
-                end
-            else
-                gui_markServerStop(state, station)
-            end
+                        local records = {}
+                        for _, record in pairs(schedule.records) do
+                            records[#records+1] = record
 
-        elseif string.find(element_name, 'trainstop-',1,true) then
-            local key = string.gsub(element_name, 'trainstop%-', "")
-            key = tonumber(key)
+                            if _ == state.lastSelectedScheduleStop then
+                                if override_wait_condition then
+                                    records[#records]['wait_conditions'] = { override_wait_condition }
+                                end
 
-            if key == state.lastSelectedScheduleStop then
-                local schedule = state.train and state.train.valid and state.train.schedule
-                if schedule ~= nil then
-                    schedule.current = key
-                    state.train.schedule = schedule
+                                records[#records+1] = {
+                                    station = station,
+                                    wait_conditions = {}
+                                }
+                            end
+                        end
+
+                        state.lastSelectedScheduleStop = state.lastSelectedScheduleStop + 1
+
+                        schedule.records = records
+                    else
+                        if #schedule.records > 0 and override_wait_condition then
+                            schedule.records[#schedule.records]['wait_conditions'] = { override_wait_condition }
+                        end
+
+                        schedule.records[#schedule.records + 1] = {
+                            station = station,
+                            wait_conditions = {}
+                        }
+
+                        state.lastSelectedScheduleStop = #schedule.records
+                    end
+                    if state.train and state.train.valid then
+                        state.train.schedule = schedule
+                        gui_trainstops(state.rightPane, state)
+                    end
                 else
+                    gui_markServerStop(state, station)
+                end
+
+            elseif string.find(element_name, 'trainstop-',1,true) then
+                local key = string.gsub(element_name, 'trainstop%-', "")
+                key = tonumber(key)
+
+                if key == state.lastSelectedScheduleStop then
+                    local schedule = state.train and state.train.valid and state.train.schedule
+                    if schedule ~= nil then
+                        schedule.current = key
+                        state.train.schedule = schedule
+                    else
+                        gui_trainstops(state.rightPane, state)
+                    end
+                end
+                gui_markScheduleStop(state, key)
+            else
+                -- game.print("clicked: " .. element_name)
+                if element_name == "reset" then
                     gui_trainstops(state.rightPane, state)
                 end
-            end
-            gui_markScheduleStop(state, key)
-        else
-            -- game.print("clicked: " .. element_name)
-            if element_name == "reset" then
-                gui_trainstops(state.rightPane, state)
             end
         end
     end

@@ -14,8 +14,6 @@ module.exports = class remoteCommands {
         this.trainstopDB = {};
         this.zonesDB = {};
 
-        this.upsInterval = null;
-
 		let socketRegister = () => {
             this.socket.emit("registerTrainTeleporter", {
                 instanceID: this.config.unique,
@@ -29,12 +27,6 @@ module.exports = class remoteCommands {
                     clearInterval(initInterval)
                 }
             }, 5000);
-
-            if(!this.upsInterval) {
-                this.upsInterval = setInterval(async () => {
-                    this.messageInterface('/silent-command remote.call("trainTeleports", "reportPassedSecond")');
-                }, 1000);
-            }
         };
 
 		this.socket.on("hello", () => socketRegister());
@@ -82,7 +74,6 @@ module.exports = class remoteCommands {
              console.log("got zones from master");
             this.zonesDB = zonesDB;
             await this.applyZonesDB();
-            this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify({event: "instances", data: await clusterUtil.getInstances(this.config, zonesDB)})) + '")');
         });
 
         this.socket.on("transaction", async data => {
@@ -98,13 +89,13 @@ module.exports = class remoteCommands {
 
         this.socket.on("trainstop_blocked", async data => {
             console.log("remote trainstop_blocked: "+data.name);
-            let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = true")';
+            let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\''+this.doubleEscape(data.name)+'\'] = true")';
             // console.log(command);
             this.messageInterface(command);
         });
         this.socket.on("trainstop_unblocked", async data => {
             console.log("remote trainstop_unblocked: "+data.name);
-            let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\"'+this.doubleEscape(data.name)+'\"] = nil")';
+            let command = "/silent-command " + 'remote.call("trainTeleports", "runCode", "global.blockedStations[\''+this.doubleEscape(data.name)+'\'] = nil")';
             // console.log(command);
             this.messageInterface(command);
         });
@@ -112,15 +103,10 @@ module.exports = class remoteCommands {
             // console.log("rename stop in schedules: "+data.oldName+" to "+data.name+" for instance "+data.instanceID);
             this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "updateStopInSchedules", "' +data.instanceID+ '", "'+this.doubleEscape(data.oldName)+'", "'+this.doubleEscape(data.name)+'")');
         });
-        this.socket.on("initAllTrains", async data => {
-//            console.log("initAllTrains");
-            this.messageInterface("/silent-command " + 'remote.call("trainTeleports", "initAllTrains")');
-        });
-
-
         this.socket.on("trainDatabase", async data => {
 //            console.log("trainDatabase", JSON.stringify(data));
-            this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify({event: "trains", trainsKnownToInstances: data.trainsKnownToInstances, trainStopTrains: data.trainStopTrains })) + '")');
+	        data.event = "trains";
+            this.messageInterface('/silent-command remote.call("trainTeleports","json","' + this.singleEscape(JSON.stringify(data)) + '")');
 
         });
 

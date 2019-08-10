@@ -95,28 +95,6 @@ remote.add_interface("trainTeleportsTrainStopTracking", {
     end
 })
 
-
-local function averageOfDifference( t )
-    local count, sum, lastValue = 0,0,0
-
-    for k,v in pairs(t) do
-        if type(v) == 'number' then
-            if lastValue > 0 then
-                count = count + 1
-                sum = sum + (v - lastValue)
-            end
-            lastValue = v
-        end
-    end
-
-    if count == 0 then
-        return 0
-    end
-
-    return math.floor((sum/count) + 0.5)
-end
-
-
 remote.remove_interface("trainTeleports");
 remote.add_interface("trainTeleports", {
     setWorldId = function(newid)
@@ -125,22 +103,6 @@ remote.add_interface("trainTeleports", {
     end,
     init = function()
         trainStopTrackingApi.initAllTrainstopsAndZones()
-        -- trainTrackingApi.initAllTrains()
-    end,
-    initAllTrains = function()
-        -- for when a node goes up or down, reinit trains
-        trainTrackingApi.initAllTrains()
-    end,
-    reportPassedSecond = function()
-        global.lastSecondTicks = global.lastSecondTicks or {}
-        table.insert(global.lastSecondTicks, game.tick)
-        if #global.lastSecondTicks > 5 then
-            table.remove(global.lastSecondTicks, 1)
-        end
-
-        if #global.lastSecondTicks > 1 then
-            guiApi.updateServerUPS(averageOfDifference(global.lastSecondTicks))
-        end
     end,
     json = function(jsonString)
         local data = game.json_to_table(jsonString)
@@ -169,6 +131,7 @@ remote.add_interface("trainTeleports", {
             end
         elseif data.event == "zones" then
             global.zones = data.zones or {}
+            trainTrackingApi.initAllTrains()
             return true
         elseif data.event == "instances" then
             global.servers = data.data
@@ -176,9 +139,12 @@ remote.add_interface("trainTeleports", {
             global.trainsKnownToInstances = data.trainsKnownToInstances
             global.trainStopTrains = data.trainStopTrains
         elseif data.event == "addRemoteTrain" then
+            global.trainsKnownToInstances[tostring(data.instanceId)] = global.trainsKnownToInstances[tostring(data.instanceId)] or {}
             global.trainsKnownToInstances[tostring(data.instanceId)][tostring(data.trainId)] = data.train
             for _, stop in pairs(data.stops) do
-                global.trainStopTrains[stop][tostring(data.instanceId)][tostring(data.trainId)] = tostring(data.trainId)
+                global.trainStopTrains[stop] = global.trainStopTrains[stop] or {}
+                global.trainStopTrains[stop][tostring(data.instanceId)] = global.trainStopTrains[stop][tostring(data.instanceId)] or {}
+                global.trainStopTrains[stop][tostring(data.instanceId)][tostring(data.trainId)] = 1
                 guiApi.updateTrainstops(stop)
             end
             -- game.print("addTrain: " .. data.trainId)
@@ -188,7 +154,12 @@ remote.add_interface("trainTeleports", {
             -- game.print("updateTrain:" .. data.trainId)
         elseif data.event == "removeRemoteTrain" then
             global.trainsKnownToInstances[tostring(data.instanceId)][tostring(data.trainId)] = nil
-            guiApi.gui_trainstop_updatetrain(data.trainId)
+            for _, stop in pairs(data.stops) do
+                if global.trainStopTrains and global.trainStopTrains[stop] and global.trainStopTrains[stop][tostring(data.instanceId)] and global.trainStopTrains[stop][tostring(data.instanceId)][tostring(data.trainId)] then
+                    global.trainStopTrains[stop][tostring(data.instanceId)][tostring(data.trainId)] = nil
+                end
+                guiApi.updateTrainstops(stop)
+            end
             -- game.print("removeTrain")
         elseif data.event == "trainReceived" then
             -- game.print("Destination received train with trainID: " .. data.trainId)
