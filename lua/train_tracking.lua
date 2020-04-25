@@ -74,8 +74,8 @@ local function serialize_inventory(inventory)
     local filters
 
     local bar = nil
-    if inventory.hasbar() then
-        bar = inventory.getbar()
+    if inventory.supports_bar() then
+        bar = inventory.get_bar()
     end
 
     if inventory.supports_filters() then
@@ -259,8 +259,8 @@ local function deserialize_inventory(inventory, data)
     = data.item_names, data.item_counts, data.item_durabilities,
     data.item_ammos, data.item_exports, data.item_labels, data.item_grids
 
-    if inventory.hasbar() then
-        inventory.setbar(data.bar)
+    if inventory.supports_bar() then
+        inventory.set_bar(data.bar)
     end
 
     for idx, name in pairs(item_names) do
